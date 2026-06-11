@@ -24,6 +24,7 @@ public class BeanToken {
     private Integer codigo;
 
     @Enumerated(EnumType.STRING)
+    @Column(length = 20, nullable = false)
     private TipoToken tipo;
 
     @Column(name = "fechaExpiracion", nullable = false)

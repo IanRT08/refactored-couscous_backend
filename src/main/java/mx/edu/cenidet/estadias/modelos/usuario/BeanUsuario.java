@@ -49,6 +49,7 @@ public class BeanUsuario {
     private byte[] fotoPerfil;
 
     @CreationTimestamp
+    @Column(name = "fechaRegistro", updatable = false)
     private LocalDateTime fechaRegistro;
 
     @OneToOne(mappedBy = "usuario", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
