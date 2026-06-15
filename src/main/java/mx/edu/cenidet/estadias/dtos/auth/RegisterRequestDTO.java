@@ -20,8 +20,9 @@ public class RegisterRequestDTO {
     @Size(max = 60, message = "El correo no puede superar los 60 caracteres")
     private String correo;
 
-    @NotBlank(message = "El nombre completo es obligatorio")
     @Size(max = 90, message = "El nombre completo no puede superar los 90 caracteres")
+    @Pattern(regexp = "^[a-zA-ZáéíóúÁÉÍÓÚñÑ]+(?: [a-zA-ZáéíóúÁÉÍÓÚñÑ]+)*$",
+            message = "El nombre solo debe contener letras y un solo espacio entre palabras")
     private String nombreCompleto;
 
     @NotBlank(message = "La contraseña es obligatoria")
