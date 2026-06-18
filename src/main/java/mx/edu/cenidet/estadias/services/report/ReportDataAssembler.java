@@ -8,10 +8,6 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 
-// Construye el XML fuente que Apache FOP transforma en PDF.
-// Usa concatenación de strings (sin JAXP/DOM) para mantener
-// la dependencia mínima. El XML generado es consumido por
-// las plantillas XSL-FO en resources/fop/templates/.
 @Component
 public class ReportDataAssembler {
 

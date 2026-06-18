@@ -8,6 +8,8 @@ import mx.edu.cenidet.estadias.dtos.downloadrequest.CreateDownloadRequestDTO;
 import mx.edu.cenidet.estadias.dtos.downloadrequest.DownloadRequestDetailDTO;
 import mx.edu.cenidet.estadias.dtos.downloadrequest.DownloadRequestSummaryDTO;
 import mx.edu.cenidet.estadias.dtos.downloadrequest.ResolveDownloadRequestDTO;
+import mx.edu.cenidet.estadias.excepciones.BusinessRuleException;
+import mx.edu.cenidet.estadias.excepciones.ResourceNotFoundException;
 import mx.edu.cenidet.estadias.modelos.permisosDescarga.BeanPermisoDescarga;
 import mx.edu.cenidet.estadias.modelos.permisosDescarga.EstadoPermiso;
 import mx.edu.cenidet.estadias.modelos.solicitudDescarga.BeanSolicitudDescarga;
@@ -16,8 +18,8 @@ import mx.edu.cenidet.estadias.modelos.usuario.BeanUsuario;
 import mx.edu.cenidet.estadias.repositorios.permisoDescarga.PermisoDescargaRepository;
 import mx.edu.cenidet.estadias.repositorios.solicitudDescarga.SolicitudDescargaRepository;
 import mx.edu.cenidet.estadias.repositorios.usuario.UsuarioRepository;
-import mx.edu.cenidet.estadias.service.mail.MailService;          // ← Parte A
-import mx.edu.cenidet.estadias.service.user.ActionHistoryService; // ← Parte A
+import mx.edu.cenidet.estadias.services.envioCorreos.MailService;
+import mx.edu.cenidet.estadias.services.HistorialAccion.ActionHistoryService;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

@@ -20,25 +20,18 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
-// Módulo 3 — Recuperación de brechas temporales.
-// Se activa en dos escenarios:
-//   1. Al arrancar la aplicación (@ApplicationReadyEvent)
-//   2. Al recuperar conectividad (ConexionRecuperadaEvent de SyncHealthService)
-// Busca el último timestamp en la BD y pide a las APIs externas
-// todos los registros del intervalo perdido, insertándolos de forma
-// secuencial e idempotente (sin duplicar).
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class GapRecoveryService {
 
-    // Umbral: si la brecha es ≤ 2 min, no hace falta recuperar
+    //Umbral: si la brecha es ≤ 2 min, no hace falta recuperar
     private static final long MINUTOS_UMBRAL = 2;
 
     private final LecturaRepository lecturaRepository;
     private final LecturaElectricaRepository electricaRepository;
-    private final AmbientWeatherClient       ambientWeatherClient;
-    private final ThingSpeakClient           thingSpeakClient;
+    private final AmbientWeatherClient ambientWeatherClient;
+    private final ThingSpeakClient thingSpeakClient;
     private final AmbientWeatherMapper ambientWeatherMapper;
     private final ThingSpeakMapper thingSpeakMapper;
 

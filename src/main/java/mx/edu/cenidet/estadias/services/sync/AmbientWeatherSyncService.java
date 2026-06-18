@@ -10,12 +10,6 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-// Módulo 3.1 — Sincronización periódica con Ambient Weather API.
-// Rate limit de la API: 1 req/s por apiKey.
-// El intervalo de fixedDelay (60 s por defecto) garantiza que
-// NUNCA se supere ese límite — y da datos con granularidad de 1 minuto.
-// fixedDelay (no fixedRate) asegura que el siguiente ciclo empieza
-// DESPUÉS de que el anterior termine, evitando solapamientos.
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -33,14 +27,13 @@ public class AmbientWeatherSyncService {
     @Transactional
     public void sincronizar() {
         try {
-            // 1. Obtener última lectura de la API
+            //Obtener última lectura de la API
             AmbientWeatherReadingDTO dto = ambientWeatherClient.obtenerUltimaLectura();
 
-            // 2. Mapear a entidad (con conversión de unidades)
+            //Mapear a entidad (con conversión de unidades)
             BeanLectura lectura = ambientWeatherMapper.toEntity(dto);
 
-            // 3. Idempotencia: no insertar si ya existe ese timestamp
-            // (Módulo 3.2 RN: "No se deben insertar lecturas duplicadas")
+            //Idempotencia: no insertar si ya existe ese timestamp
             if (lecturaRepository.existsByFechaLectura(lectura.getFechaLectura())) {
                 log.debug("[SYNC-AW] Lectura {} ya existe. Omitiendo.",
                         lectura.getFechaLectura());
@@ -48,7 +41,7 @@ public class AmbientWeatherSyncService {
                 return;
             }
 
-            // 4. Persistir
+            //Persistir
             lecturaRepository.save(lectura);
             log.info("[SYNC-AW] Lectura climática guardada: {}", lectura.getFechaLectura());
             syncHealthService.marcarExito(SyncHealthService.FUENTE_AMBIENT);

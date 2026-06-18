@@ -4,15 +4,12 @@ import lombok.RequiredArgsConstructor;
 import mx.edu.cenidet.estadias.dtos.estadisticas.ClimateStatisticsDTO;
 import mx.edu.cenidet.estadias.dtos.estadisticas.ElectricStatisticsDTO;
 import mx.edu.cenidet.estadias.dtos.estadisticas.StatsFilterDTO;
+import mx.edu.cenidet.estadias.excepciones.BusinessRuleException;
 import mx.edu.cenidet.estadias.repositorios.lectura.LecturaRepository;
 import mx.edu.cenidet.estadias.repositorios.lecturaElectrica.LecturaElectricaRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-// Módulo 6 — Cálculo de promedios, máximos y mínimos.
-// Las consultas agregadas se ejecutan completamente en MySQL
-// (a través de las @Query en los repositorios) para manejar
-// eficientemente datasets de 10 000+ registros.
 @Service
 @RequiredArgsConstructor
 public class StatisticsService {
@@ -20,7 +17,7 @@ public class StatisticsService {
     private final LecturaRepository lecturaRepository;
     private final LecturaElectricaRepository electricaRepository;
 
-    // ── Estadísticas climáticas ───────────────────────────────
+    //Estadísticas climáticas
     @Transactional(readOnly = true)
     public ClimateStatisticsDTO calcularClimaticas(StatsFilterDTO filtro) {
         // DFR CA 6.1: "Si no hay datos en el periodo → mensaje específico"
@@ -51,7 +48,7 @@ public class StatisticsService {
                 .build();
     }
 
-    // ── Estadísticas eléctricas ───────────────────────────────
+    //Estadísticas eléctricas
     @Transactional(readOnly = true)
     public ElectricStatisticsDTO calcularElectricas(StatsFilterDTO filtro) {
         LecturaElectricaRepository.EstadisticasElectricas stats =

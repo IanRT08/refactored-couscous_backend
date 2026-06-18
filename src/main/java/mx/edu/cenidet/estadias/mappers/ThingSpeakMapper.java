@@ -9,10 +9,6 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 
-// Convierte ThingSpeakFeedDTO.Feed → LecturaElectrica.
-// Los campos field1–field4 llegan como String (puede ser null o vacío);
-// parseFloat() retorna null en lugar de lanzar excepción para no romper
-// el flujo de sincronización por un dato puntualmente malo.
 @Component
 public class ThingSpeakMapper {
 

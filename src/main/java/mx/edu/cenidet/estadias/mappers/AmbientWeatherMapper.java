@@ -9,12 +9,6 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 
-// Convierte AmbientWeatherReadingDTO (unidades imperiales/API) → Lectura (SI).
-// Conversiones aplicadas:
-//   Temperatura: °F → °C    t_C = (t_F - 32) × 5/9
-//   Viento:      mph → m/s  v = mph × 0.44704
-//   Presión:     inHg → hPa p = inHg × 33.8639
-//   Lluvia:      in → mm    r = in × 25.4
 @Component
 public class AmbientWeatherMapper {
 

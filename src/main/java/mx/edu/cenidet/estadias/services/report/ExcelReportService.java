@@ -3,6 +3,7 @@ package mx.edu.cenidet.estadias.services.report;
 import lombok.extern.slf4j.Slf4j;
 
 import mx.edu.cenidet.estadias.dtos.reportes.ReportFilterDTO;
+import mx.edu.cenidet.estadias.excepciones.ReportGenerationException;
 import mx.edu.cenidet.estadias.modelos.lectura.BeanLectura;
 import mx.edu.cenidet.estadias.modelos.lecturaElectrica.BeanLecturaElectrica;
 import org.apache.poi.ss.usermodel.*;
@@ -14,14 +15,12 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.List;
 
-// Módulo 7 — Generación de reportes Excel con Apache POI (poi-ooxml 5.2.3).
-// Las filas de resumen usan fórmulas nativas (AVERAGE, MAX, MIN)
-// para que sean recalculables al abrir el archivo en Excel/LibreOffice.
+
 @Service
 @Slf4j
 public class ExcelReportService {
 
-    // ── Reporte Climático ─────────────────────────────────────
+    //Reporte Climático
     public byte[] generarReporteClimatico(List<BeanLectura> datos, ReportFilterDTO filtro) {
         try (Workbook wb = new XSSFWorkbook();
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
@@ -30,12 +29,12 @@ public class ExcelReportService {
             CellStyle estiloEncabezado = crearEstiloEncabezado(wb);
             CellStyle estiloResumen    = crearEstiloResumen(wb);
 
-            // Encabezados
+            //Encabezados
             String[] cols = {"Fecha/Hora", "Temperatura (°C)", "Viento (m/s)",
                     "Humedad (%)", "Radiación (W/m²)", "Presión (hPa)"};
             crearFila(hoja, 0, cols, estiloEncabezado);
 
-            // Datos
+            //Datos
             int fila = 1;
             for (BeanLectura l : datos) {
                 Row row = hoja.createRow(fila++);
@@ -47,7 +46,7 @@ public class ExcelReportService {
                 setCeldaFloat(row, 5, l.getPresion());
             }
 
-            // Filas de resumen con fórmulas nativas
+            //Filas de resumen con fórmulas nativas
             int ultimaFila = fila;
             agregarFilaResumen(hoja, fila++, "PROMEDIO", "AVERAGE", 2, ultimaFila,
                     estiloResumen);
@@ -56,7 +55,7 @@ public class ExcelReportService {
             agregarFilaResumen(hoja, fila,   "MÍNIMO",   "MIN",     2, ultimaFila,
                     estiloResumen);
 
-            // Autoajustar columnas
+            //Autoajustar columnas
             for (int i = 0; i < cols.length; i++) hoja.autoSizeColumn(i);
 
             wb.write(out);
@@ -68,7 +67,7 @@ public class ExcelReportService {
         }
     }
 
-    // ── Reporte Eléctrico ─────────────────────────────────────
+    //Reporte Eléctrico
     public byte[] generarReporteElectrico(List<BeanLecturaElectrica> datos, ReportFilterDTO filtro) {
         try (Workbook wb = new XSSFWorkbook();
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
@@ -110,7 +109,6 @@ public class ExcelReportService {
         }
     }
 
-    // ── Helpers de POI ───────────────────────────────────────
     private void crearFila(Sheet hoja, int numFila, String[] valores, CellStyle estilo) {
         Row row = hoja.createRow(numFila);
         for (int i = 0; i < valores.length; i++) {
@@ -125,8 +123,8 @@ public class ExcelReportService {
         if (valor != null) cell.setCellValue(valor);
     }
 
-    // Agrega una fila de resumen con etiqueta en col 0 y fórmulas AVERAGE/MAX/MIN
-    // en las columnas de datos (colInicio..colInicio + columnas)
+    //Agrega una fila de resumen con etiqueta en col 0 y fórmulas AVERAGE/MAX/MIN
+    //en las columnas de datos (colInicio..colInicio + columnas)
     private void agregarFilaResumen(Sheet hoja, int numFila, String etiqueta,
                                     String funcion, int colInicio, int ultimaFilaDatos,
                                     CellStyle estilo) {
@@ -137,7 +135,6 @@ public class ExcelReportService {
 
         for (int col = colInicio - 1; col < hoja.getRow(0).getLastCellNum(); col++) {
             String colLetra = CellReference.convertNumToColString(col);
-            // Rango desde fila 2 (índice 1) hasta la última fila de datos
             String rango = colLetra + "2:" + colLetra + ultimaFilaDatos;
             Cell cell = row.createCell(col);
             cell.setCellFormula(funcion + "(" + rango + ")");

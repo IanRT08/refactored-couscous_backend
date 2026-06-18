@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import mx.edu.cenidet.estadias.dtos.alertas.AlertDTO;
 import mx.edu.cenidet.estadias.dtos.alertas.AlertSettingsDTO;
 import mx.edu.cenidet.estadias.dtos.comunes.PageResponseDTO;
+import mx.edu.cenidet.estadias.excepciones.ResourceNotFoundException;
 import mx.edu.cenidet.estadias.modelos.alerta.BeanAlerta;
 import mx.edu.cenidet.estadias.repositorios.alerta.AlertaRepository;
 import mx.edu.cenidet.estadias.repositorios.usuario.UsuarioRepository;
@@ -14,12 +15,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.stream.Collectors;
 
-// Módulo 8 — Gestión de alertas del sistema y de usuarios.
-// SyncHealthService y DownloadRequestService llaman a este servicio
-// para crear alertas sin pasar por el Controller.
-//
-// ⚠ CAMPO ADICIONAL REQUERIDO EN Usuario.java:
-//   preferenciasAlertas (ya listado en el aviso al tope de ParteA_Services.java)
 @Service
 @RequiredArgsConstructor
 public class AlertService {
@@ -27,9 +22,7 @@ public class AlertService {
     private final AlertaRepository alertaRepository;
     private final UsuarioRepository usuarioRepository;
 
-    // ── Crear alerta de sistema (visible para todos) ──────────
-    // Llamado por SyncHealthService cuando hay ≥3 fallos.
-    // usuario = null → alerta general pública (Módulo 8.1 RN)
+    //Crear alerta de sistema
     @Transactional
     public BeanAlerta crearAlertaSistema(String tipo, String mensaje) {
         BeanAlerta alerta = BeanAlerta.builder()
@@ -40,8 +33,7 @@ public class AlertService {
         return alertaRepository.save(alerta);
     }
 
-    // ── Crear alerta personal para un usuario ────────────────
-    // Llamado por DownloadRequestService al resolver solicitudes.
+    //Crear alerta personal para un usuario
     @Transactional
     public BeanAlerta crearAlertaUsuario(Long idUsuario, String tipo, String mensaje) {
         BeanAlerta alerta = BeanAlerta.builder()
@@ -52,16 +44,15 @@ public class AlertService {
         return alertaRepository.save(alerta);
     }
 
-    // ── Módulo 8.1 — Alertas para visitantes (sin sesión) ────
-    // DFR RN: "Los visitantes solo verán alertas muy generales del sistema"
+    //Alertas para visitantes (sin sesión)
     @Transactional(readOnly = true)
     public List<AlertDTO> listarParaVisitante() {
         return alertaRepository.findByUsuarioIsNullOrderByFechaCreacionDesc()
                 .stream().map(this::mapToDTO).collect(Collectors.toList());
     }
 
-    // ── Módulo 8.1 — Alertas para usuario registrado ─────────
-    // Combina alertas personales + generales (AlertaRepository @Query)
+    //Alertas para usuario registrado
+    //Combina alertas personales + generales
     @Transactional(readOnly = true)
     public PageResponseDTO<AlertDTO> listarParaUsuario(Long idUsuario, Pageable pageable) {
         if (!usuarioRepository.existsById(idUsuario)) {
@@ -73,7 +64,7 @@ public class AlertService {
         );
     }
 
-    // ── Módulo 8 — Leer preferencias del usuario ─────────────
+    //Leer preferencias del usuario
     @Transactional(readOnly = true)
     public AlertSettingsDTO obtenerConfiguracion(Long idUsuario) {
         String pref = usuarioRepository.findById(idUsuario)
@@ -82,8 +73,7 @@ public class AlertService {
         return new AlertSettingsDTO(pref);
     }
 
-    // ── Módulo 8 — Actualizar preferencias ───────────────────
-    // DFR RN: "Las alertas se pueden desactivar en los ajustes de perfil"
+    //Actualizar preferencias
     @Transactional
     public void actualizarConfiguracion(Long idUsuario, AlertSettingsDTO dto) {
         usuarioRepository.findById(idUsuario).ifPresent(u -> {
@@ -92,7 +82,6 @@ public class AlertService {
         });
     }
 
-    // ── Mapper privado ────────────────────────────────────────
     private AlertDTO mapToDTO(BeanAlerta a) {
         return AlertDTO.builder()
                 .idAlerta(a.getIdAlerta())
