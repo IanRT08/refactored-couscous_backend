@@ -11,6 +11,7 @@ import mx.edu.cenidet.estadias.dtos.downloadrequest.DownloadRequestSummaryDTO;
 import mx.edu.cenidet.estadias.dtos.downloadrequest.ResolveDownloadRequestDTO;
 import mx.edu.cenidet.estadias.modelos.solicitudDescarga.EstadoSolicitud;
 import mx.edu.cenidet.estadias.services.downloadrequest.DownloadRequestService;
+import mx.edu.cenidet.estadias.util.AuthUtils;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
@@ -31,7 +32,7 @@ import java.util.List;
 public class DownloadRequestController {
 
     private final DownloadRequestService downloadRequestService;
-    private final AuthUtils              authUtils;
+    private final AuthUtils authUtils;
 
     // ── POST /api/solicitudes ─────────────────────────────────
     // Módulo 7.1 — El usuario crea una solicitud de permiso.
