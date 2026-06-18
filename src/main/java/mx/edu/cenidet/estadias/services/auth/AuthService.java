@@ -2,9 +2,7 @@ package mx.edu.cenidet.estadias.services.auth;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import mx.edu.cenidet.estadias.dtos.auth.LoginRequestDTO;
-import mx.edu.cenidet.estadias.dtos.auth.LoginResponseDTO;
-import mx.edu.cenidet.estadias.dtos.auth.RegisterRequestDTO;
+import mx.edu.cenidet.estadias.dtos.auth.*;
 import mx.edu.cenidet.estadias.excepciones.BusinessRuleException;
 import mx.edu.cenidet.estadias.excepciones.InvalidCredentialsException;
 import mx.edu.cenidet.estadias.modelos.usuario.BeanUsuario;
@@ -179,5 +177,39 @@ public class AuthService implements UserDetailsService {
                 .map(a -> a.getTipoAdministrador().name())
                 .orElse("USUARIO");
     }
+
+    @Transactional
+        public void confirmarCuenta(VerifyTokenRequestDTO dto) {
+        BeanUsuario usuario = usuarioRepository.findByCorreo(dto.getCorreo())
+        .orElseThrow(() -> new BusinessRuleException("Correo no registrado."));
+        tokenService.validarYConsumir(usuario.getIdUsuario(), dto.getCodigo(),
+            TipoToken.CONFIRMACION_CUENTA);
+            usuario.setEstado(EstadoUsuario.ACTIVO);
+            usuarioRepository.save(usuario);
+            actionHistoryService.registrar(usuario.getIdUsuario(), "CUENTA_CONFIRMADA", "Cuenta activada tras verificación de correo");
+    }
+
+    @Transactional
+        public void solicitarRecuperacionPassword(ForgotPasswordRequestDTO dto) {
+        BeanUsuario usuario = usuarioRepository.findByCorreo(dto.getCorreo())
+             .orElseThrow(() -> new BusinessRuleException("Correo no registrado."));
+        tokenService.generarYEnviarToken(usuario.getIdUsuario(),
+                TipoToken.RECUPERACION,
+                usuario.getCorreo(), usuario.getNombreCompleto());
+    }
+
+    @Transactional
+    public void resetearPassword(ResetPasswordRequestDTO dto) {
+        BeanUsuario usuario = usuarioRepository.findByCorreo(dto.getCorreo())
+             .orElseThrow(() -> new BusinessRuleException("Correo no registrado."));
+        tokenService.validarYConsumir(usuario.getIdUsuario(), dto.getCodigo(),
+             TipoToken.RECUPERACION);
+        usuario.setContrasenia(passwordEncoder.encode(dto.getNuevaContrasenia()));
+        usuarioRepository.save(usuario);
+        actionHistoryService.registrar(usuario.getIdUsuario(), "PASSWORD_RESETEADO",
+             "Contraseña restablecida por flujo de recuperación");
+    }
+
+
 
 }
