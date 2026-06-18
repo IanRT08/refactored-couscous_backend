@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
 import java.util.Date;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -62,6 +63,21 @@ public class JwtService {
 
     private SecretKey getSigningKey() {
         return Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret));
+    }
+
+    public boolean esTokenValidoSoloFirma(String token) {
+        try {
+            extraerClaims(token); //lanza excepción si la firma es inválida o expiró
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public List<String> extraerAutoridades(String token) {
+        String rol = extraerRol(token); //claim "rol" generado en autenticar()
+        if (rol == null || rol.isBlank()) return List.of();
+        return List.of("ROLE_" + rol);
     }
 
 }
