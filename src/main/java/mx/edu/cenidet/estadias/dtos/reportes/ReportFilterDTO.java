@@ -3,19 +3,23 @@ package mx.edu.cenidet.estadias.dtos.reportes;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Getter
+@NoArgsConstructor
+@AllArgsConstructor
 public class ReportFilterDTO {
 
     @NotNull(message = "La fecha de inicio es obligatoria")
-    private LocalDate inicio;
+    private LocalDateTime inicio;
 
     @NotNull(message = "La fecha de fin es obligatoria")
-    private LocalDate fin;
+    private LocalDateTime fin;
 
     @NotNull(message = "El tipo de reporte es obligatorio")
     private TipoReporte tipo;

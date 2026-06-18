@@ -1,4 +1,4 @@
-package mx.edu.cenidet.estadias.controllers;
+package mx.edu.cenidet.estadias.controllers.sync;
 
 import lombok.RequiredArgsConstructor;
 import mx.edu.cenidet.estadias.dtos.comunes.ApiResponseDTO;
