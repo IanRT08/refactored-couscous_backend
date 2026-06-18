@@ -3,6 +3,10 @@ package mx.edu.cenidet.estadias.services.sync;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import mx.edu.cenidet.estadias.dtos.client.AmbientWeatherReadingDTO;
+import mx.edu.cenidet.estadias.dtos.client.ThingSpeakFeedDTO;
+import mx.edu.cenidet.estadias.event.ConexionRecuperadaEvent;
+import mx.edu.cenidet.estadias.mappers.AmbientWeatherMapper;
+import mx.edu.cenidet.estadias.mappers.ThingSpeakMapper;
 import mx.edu.cenidet.estadias.repositorios.lectura.LecturaRepository;
 import mx.edu.cenidet.estadias.repositorios.lecturaElectrica.LecturaElectricaRepository;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -35,8 +39,8 @@ public class GapRecoveryService {
     private final LecturaElectricaRepository electricaRepository;
     private final AmbientWeatherClient       ambientWeatherClient;
     private final ThingSpeakClient           thingSpeakClient;
-    private final AmbientWeatherMapper       ambientWeatherMapper;
-    private final ThingSpeakMapper           thingSpeakMapper;
+    private final AmbientWeatherMapper ambientWeatherMapper;
+    private final ThingSpeakMapper thingSpeakMapper;
 
     // ── Disparadores de evento ────────────────────────────────
 

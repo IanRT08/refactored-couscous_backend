@@ -1,10 +1,9 @@
 package mx.edu.cenidet.estadias.services.sync;
 
-package mx.edu.cenidet.estadias.service.sync;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import mx.edu.cenidet.estadias.dtos.client.AmbientWeatherReadingDTO;
+import mx.edu.cenidet.estadias.mappers.AmbientWeatherMapper;
 import mx.edu.cenidet.estadias.modelos.lectura.BeanLectura;
 import mx.edu.cenidet.estadias.repositorios.lectura.LecturaRepository;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -24,7 +23,7 @@ public class AmbientWeatherSyncService {
 
     private final AmbientWeatherClient  ambientWeatherClient;
     private final LecturaRepository lecturaRepository;
-    private final AmbientWeatherMapper  ambientWeatherMapper;
+    private final AmbientWeatherMapper ambientWeatherMapper;
     private final SyncHealthService     syncHealthService;
 
     // ── Ciclo de sincronización ───────────────────────────────

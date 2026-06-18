@@ -3,6 +3,7 @@ package mx.edu.cenidet.estadias.services.sync;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import mx.edu.cenidet.estadias.event.ConexionRecuperadaEvent;
+import mx.edu.cenidet.estadias.services.alert.AlertService;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
@@ -25,7 +26,7 @@ public class SyncHealthService {
 
     private static final int MAX_FALLOS = 3;
 
-    private final AlertService             alertService;
+    private final AlertService alertService;
     private final ApplicationEventPublisher eventPublisher;
 
     // Contadores de fallos consecutivos por fuente

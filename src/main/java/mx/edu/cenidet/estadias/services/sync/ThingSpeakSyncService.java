@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import mx.edu.cenidet.estadias.dtos.client.ThingSpeakFeedDTO;
+import mx.edu.cenidet.estadias.mappers.ThingSpeakMapper;
 import mx.edu.cenidet.estadias.modelos.lecturaElectrica.BeanLecturaElectrica;
 import mx.edu.cenidet.estadias.repositorios.lecturaElectrica.LecturaElectricaRepository;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -21,7 +22,7 @@ public class ThingSpeakSyncService {
 
     private final ThingSpeakClient          thingSpeakClient;
     private final LecturaElectricaRepository electricaRepository;
-    private final ThingSpeakMapper           thingSpeakMapper;
+    private final ThingSpeakMapper thingSpeakMapper;
     private final SyncHealthService          syncHealthService;
 
     // application.yml: sync.thingspeak.interval-ms: 30000
