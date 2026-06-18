@@ -15,8 +15,6 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.List;
 
-// NO lleva @Component — se registra como @Bean en SecurityConfig para
-// evitar que el contenedor de servlets lo registre dos veces (doble ejecución).
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
@@ -31,7 +29,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain         filterChain) throws ServletException, IOException {
 
-        // ── 1. Extraer y validar cabecera ─────────────────────
+        //1. Extraer y validar cabecera
         String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
@@ -40,40 +38,40 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String jwt = authHeader.substring(7).trim();
 
-        // ── 2. Validar firma + expiración del JWT ─────────────
-        // Usa esTokenValidoSoloFirma() (no requiere UserDetails) para
-        // que cada petición no haga una consulta a BD.
+        //2. Validar firma + expiración del JWT
+        //Usa esTokenValidoSoloFirma() (no requiere UserDetails) para
+        //que cada petición no haga una consulta a BD.
         if (jwt.isEmpty() || !jwtService.esTokenValidoSoloFirma(jwt)) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        // ── 3. Extraer identificador del subject (nombreUsuario) ─
-        // El JWT fue generado con subject = nombreUsuario en AuthService.autenticar()
+        //3. Extraer identificador del subject (nombreUsuario)
+        //El JWT fue generado con subject = nombreUsuario en AuthService.autenticar()
         String nombreUsuario = jwtService.extraerUsername(jwt);
         if (nombreUsuario == null || nombreUsuario.isBlank()) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        // ── 4. Construir lista de autoridades desde el claim "rol" ─
-        // extraerAutoridades() lee el claim "rol" (ej: "ADMINISTRADOR") y
-        // lo convierte a formato Spring Security "ROLE_ADMINISTRADOR".
+        //4. Construir lista de autoridades desde el claim "rol"
+        //extraerAutoridades() lee el claim "rol" (ej: "ADMINISTRADOR") y
+        //lo convierte a formato Spring Security "ROLE_ADMINISTRADOR".
         List<SimpleGrantedAuthority> authorities = jwtService.extraerAutoridades(jwt)
                 .stream()
                 .map(SimpleGrantedAuthority::new)
                 .toList();
 
-        // ── 5. Crear token de autenticación y colocar en el contexto ─
+        //5. Crear token de autenticación y colocar en el contexto
         UsernamePasswordAuthenticationToken authToken =
                 new UsernamePasswordAuthenticationToken(nombreUsuario, null, authorities);
 
-        // details enriquece con IP y session-id para auditoría
+        //details enriquece con IP y session-id para auditoría
         authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
         SecurityContextHolder.getContext().setAuthentication(authToken);
 
-        // ── 6. Continuar la cadena de filtros ────────────────────
+        //6. Continuar la cadena de filtros
         filterChain.doFilter(request, response);
     }
 }
