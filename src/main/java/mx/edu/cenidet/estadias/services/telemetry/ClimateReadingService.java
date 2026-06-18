@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import mx.edu.cenidet.estadias.dtos.comunes.PageResponseDTO;
 import mx.edu.cenidet.estadias.dtos.telemetria.ClimateReadingDTO;
 import mx.edu.cenidet.estadias.dtos.telemetria.TelemetryFilterDTO;
+import mx.edu.cenidet.estadias.excepciones.ResourceNotFoundException;
 import mx.edu.cenidet.estadias.modelos.lectura.BeanLectura;
 import mx.edu.cenidet.estadias.repositorios.lectura.LecturaRepository;
 import org.springframework.data.domain.PageRequest;
