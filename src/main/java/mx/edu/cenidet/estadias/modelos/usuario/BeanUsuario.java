@@ -28,13 +28,13 @@ public class BeanUsuario {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long idUsuario;
 
-    @Column(unique = true, length = 60, nullable = false)
+    @Column(name = "nombreUsario",unique = true, length = 60, nullable = false)
     private String nombreUsuario;
 
     @Column(unique = true, length = 60, nullable = false)
     private String correo;
 
-    @Column(length = 90)
+    @Column(name = "nombreCompleto",length = 90)
     private String nombreCompleto;
 
     @Column(length = 255, nullable = false)
@@ -45,12 +45,23 @@ public class BeanUsuario {
     private EstadoUsuario estado; //ACTIVO, INACTIVO, BLOQUEADO
 
     @Lob
-    @Column(columnDefinition = "MEDIUMBLOB")
+    @Column(name = "fotoPerfil", columnDefinition = "MEDIUMBLOB")
     private byte[] fotoPerfil;
 
     @CreationTimestamp
     @Column(name = "fechaRegistro", updatable = false)
     private LocalDateTime fechaRegistro;
+
+    @Column(name = "intentosFallidos", nullable = false, columnDefinition = "INT DEFAULT 0")
+    @Builder.Default
+    private Integer intentosFallidos = 0;
+
+    @Column(name = "fechaBloqueo")
+    private LocalDateTime fechaBloqueo;
+
+    @Column(name = "preferenciasAlertas", length = 10, columnDefinition = "VARCHAR(10) DEFAULT 'TODAS'")
+    @Builder.Default
+    private String preferenciasAlertas = "TODAS";
 
     @OneToOne(mappedBy = "usuario", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private BeanAdministrador administrador;

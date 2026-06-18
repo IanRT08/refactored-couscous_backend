@@ -1,0 +1,210 @@
+package mx.edu.cenidet.estadias.services.administrador;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import mx.edu.cenidet.estadias.dtos.administrador.*;
+import mx.edu.cenidet.estadias.excepciones.BusinessRuleException;
+import mx.edu.cenidet.estadias.excepciones.ResourceNotFoundException;
+import mx.edu.cenidet.estadias.services.HistorialAccion.ActionHistoryService;
+import mx.edu.cenidet.estadias.services.envioCorreos.MailService;
+import org.springframework.stereotype.Service;
+import mx.edu.cenidet.estadias.dtos.comunes.PageResponseDTO;
+import mx.edu.cenidet.estadias.modelos.administrador.BeanAdministrador;
+import mx.edu.cenidet.estadias.modelos.administrador.TipoAdministrador;
+import mx.edu.cenidet.estadias.modelos.usuario.BeanUsuario;
+import mx.edu.cenidet.estadias.modelos.usuario.EstadoUsuario;
+import mx.edu.cenidet.estadias.repositorios.administrador.AdministradorRepository;
+import mx.edu.cenidet.estadias.repositorios.usuario.UsuarioRepository;
+import org.springframework.data.domain.Pageable;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.security.SecureRandom;
+import java.util.Base64;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class AdminService {
+
+    private final UsuarioRepository usuarioRepository;
+    private final AdministradorRepository administradorRepository;
+    private final ActionHistoryService actionHistoryService;
+    private final MailService mailService;
+    private final PasswordEncoder passwordEncoder;
+
+    //Listar usuarios con búsqueda y filtros
+    @Transactional(readOnly = true)
+    public PageResponseDTO<UserSummaryDTO> listarUsuarios(
+            String termino, EstadoUsuario estado, Pageable pageable) {
+
+        String t = (termino == null || termino.isBlank()) ? "" : termino.trim();
+        return PageResponseDTO.of(
+                usuarioRepository.buscarPorTerminoYEstado(t, estado, pageable)
+                        .map(this::mapToUserSummaryDTO)
+        );
+    }
+
+    //Ver detalle de un usuario
+    @Transactional(readOnly = true)
+    public UserDetailDTO obtenerDetalle(Long idUsuario) {
+        BeanUsuario usuario = buscarPorId(idUsuario);
+        return mapToUserDetailDTO(usuario);
+    }
+
+    //Cambiar estado de un usuario
+    @Transactional
+    public UserSummaryDTO cambiarEstadoUsuario(Long idAdmin, Long idUsuario, UpdateUserStatusRequestDTO dto) {
+        verificarEsAdmin(idAdmin);
+        BeanUsuario usuario = buscarPorId(idUsuario);
+        EstadoUsuario estadoAnterior = usuario.getEstado();
+        usuario.setEstado(dto.getNuevoEstado());
+        //Si se reactiva un bloqueado o inactivo, resetear intentos fallidos
+        if (EstadoUsuario.ACTIVO.equals(dto.getNuevoEstado())) {
+            usuario.setIntentosFallidos(0);
+            usuario.setFechaBloqueo(null);
+        }
+        usuarioRepository.save(usuario);
+        actionHistoryService.registrar(idAdmin, "ESTADO_USUARIO_CAMBIADO",
+                String.format("Usuario %s: %s → %s. Motivo: %s",
+                        usuario.getNombreUsuario(), estadoAnterior, dto.getNuevoEstado(),
+                        dto.getMotivo() != null ? dto.getMotivo() : "Sin motivo especificado"));
+
+        log.info("Estado de usuario {} cambiado: {} → {}", usuario.getNombreUsuario(),
+                estadoAnterior, dto.getNuevoEstado());
+        return mapToUserSummaryDTO(usuario);
+    }
+
+    @Transactional
+    public AdminSummaryDTO crearAdministrador(Long idSuperAdmin, CreateAdminRequestDTO dto) {
+        verificarEsSuperAdmin(idSuperAdmin);
+
+        if (usuarioRepository.existsByNombreUsuario(dto.getNombreUsuario())) {
+            throw new BusinessRuleException("El nombre de usuario ya está en uso.");
+        }
+        if (usuarioRepository.existsByCorreo(dto.getCorreo())) {
+            throw new BusinessRuleException("El correo ya está registrado.");
+        }
+
+        String passwordTemporal = generarPasswordTemporal();
+
+        BeanUsuario nuevoUsuario = BeanUsuario.builder()
+                .nombreUsuario(dto.getNombreUsuario())
+                .correo(dto.getCorreo())
+                .nombreCompleto(dto.getNombreCompleto())
+                .contrasenia(passwordEncoder.encode(passwordTemporal))
+                .estado(EstadoUsuario.ACTIVO)
+                .intentosFallidos(0)
+                .build();
+        nuevoUsuario = usuarioRepository.save(nuevoUsuario);
+
+        BeanAdministrador admin = BeanAdministrador.builder()
+                .tipoAdministrador(dto.getTipoAdministrador())
+                .usuario(nuevoUsuario)
+                .build();
+        admin = administradorRepository.save(admin);
+
+        mailService.enviarCredencialesAdmin(
+                nuevoUsuario.getCorreo(), nuevoUsuario.getNombreCompleto(), passwordTemporal);
+
+        actionHistoryService.registrar(idSuperAdmin, "ADMIN_CREADO",
+                "Nuevo administrador: " + nuevoUsuario.getNombreUsuario()
+                        + " (" + dto.getTipoAdministrador() + ")");
+
+        log.info("Administrador creado: {} ({})", nuevoUsuario.getNombreUsuario(),
+                dto.getTipoAdministrador());
+        return mapToAdminSummaryDTO(admin, nuevoUsuario);
+    }
+
+    //Listar administradores
+    @Transactional(readOnly = true)
+    public List<AdminSummaryDTO> listarAdministradores(Long idSuperAdmin) {
+        verificarEsSuperAdmin(idSuperAdmin);
+        return administradorRepository.findAllByOrderByUsuario_NombreUsuarioAsc()
+                .stream()
+                .map(a -> mapToAdminSummaryDTO(a, a.getUsuario()))
+                .collect(Collectors.toList());
+    }
+
+    private void verificarEsAdmin(Long idUsuario) {
+        if (!administradorRepository.existsByUsuario_IdUsuario(idUsuario)) {
+            throw new BusinessRuleException("No tienes permisos de administrador.");
+        }
+    }
+
+    private void verificarEsSuperAdmin(Long idUsuario) {
+        administradorRepository.findByUsuario_IdUsuario(idUsuario)
+                .filter(a -> TipoAdministrador.SUPERADMINISTRADOR.equals(a.getTipoAdministrador()))
+                .orElseThrow(() -> new BusinessRuleException(
+                        "Solo el Superadministrador puede realizar esta acción."));
+    }
+
+    private BeanUsuario buscarPorId(Long idUsuario) {
+        return usuarioRepository.findById(idUsuario)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Usuario no encontrado con id: " + idUsuario));
+    }
+
+    private String generarPasswordTemporal() {
+        String chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789@$!";
+        SecureRandom random = new SecureRandom();
+        return random.ints(12, 0, chars.length())
+                .mapToObj(i -> String.valueOf(chars.charAt(i)))
+                .collect(Collectors.joining());
+    }
+
+    private UserSummaryDTO mapToUserSummaryDTO(BeanUsuario u) {
+        boolean esAdmin = administradorRepository.existsByUsuario_IdUsuario(u.getIdUsuario());
+        String tipo = null;
+        if (esAdmin) {
+            tipo = administradorRepository.findByUsuario_IdUsuario(u.getIdUsuario())
+                    .map(a -> a.getTipoAdministrador().name()).orElse(null);
+        }
+        return UserSummaryDTO.builder()
+                .idUsuario(u.getIdUsuario())
+                .nombreUsuario(u.getNombreUsuario())
+                .correo(u.getCorreo())
+                .nombreCompleto(u.getNombreCompleto())
+                .estado(u.getEstado().name())
+                .fechaRegistro(u.getFechaRegistro())
+                .esAdministrador(esAdmin)
+                .tipoAdministrador(tipo)
+                .build();
+    }
+
+    private UserDetailDTO mapToUserDetailDTO(BeanUsuario u) {
+        boolean esAdmin = administradorRepository.existsByUsuario_IdUsuario(u.getIdUsuario());
+        String tipo = null;
+        if (esAdmin) {
+            tipo = administradorRepository.findByUsuario_IdUsuario(u.getIdUsuario())
+                    .map(a -> a.getTipoAdministrador().name()).orElse(null);
+        }
+        String foto = (u.getFotoPerfil() != null && u.getFotoPerfil().length > 0)
+                ? Base64.getEncoder().encodeToString(u.getFotoPerfil()) : null;
+        return UserDetailDTO.builder()
+                .idUsuario(u.getIdUsuario())
+                .nombreUsuario(u.getNombreUsuario())
+                .correo(u.getCorreo())
+                .nombreCompleto(u.getNombreCompleto())
+                .estado(u.getEstado().name())
+                .fotoPerfil(foto)
+                .fechaRegistro(u.getFechaRegistro())
+                .esAdministrador(esAdmin)
+                .tipoAdministrador(tipo)
+                .build();
+    }
+
+    private AdminSummaryDTO mapToAdminSummaryDTO(BeanAdministrador a, BeanUsuario u) {
+        return AdminSummaryDTO.builder()
+                .idAdministrador(a.getIdAdministrador())
+                .idUsuario(u.getIdUsuario())
+                .nombreUsuario(u.getNombreUsuario())
+                .correo(u.getCorreo())
+                .nombreCompleto(u.getNombreCompleto())
+                .tipoAdministrador(a.getTipoAdministrador().name())
+                .estadoUsuario(u.getEstado().name())
+                .build();
+    }
+}
