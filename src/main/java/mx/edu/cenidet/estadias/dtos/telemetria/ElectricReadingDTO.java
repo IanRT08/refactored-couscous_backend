@@ -4,6 +4,8 @@ import lombok.*;
 
 import java.time.LocalDateTime;
 
+@Getter
+@Builder
 public class ElectricReadingDTO {
 
     private Long idLecturaElectrica;

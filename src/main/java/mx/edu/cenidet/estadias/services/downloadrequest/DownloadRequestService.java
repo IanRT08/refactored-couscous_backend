@@ -28,10 +28,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
-// Módulos 7 y 2.5 — Solicitudes de permiso de descarga.
-// DEPENDENCIAS CRUZADAS (Parte A, ya mergeada):
-//   · ActionHistoryService — para registrar auditoría
-//   · MailService          — para notificar al usuario del resultado
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -40,15 +36,15 @@ public class DownloadRequestService {
     private final SolicitudDescargaRepository solicitudRepository;
     private final PermisoDescargaRepository permisoRepository;
     private final UsuarioRepository usuarioRepository;
-    private final ActionHistoryService        actionHistoryService; // ← Parte A
-    private final MailService                 mailService;          // ← Parte A
+    private final ActionHistoryService actionHistoryService;
+    private final MailService mailService;
 
-    // ── Módulo 7.1 — El usuario crea una solicitud ───────────
+    //El usuario crea una solicitud
     @Transactional
     public DownloadRequestSummaryDTO crearSolicitud(Long idUsuario,
                                                     CreateDownloadRequestDTO dto) {
-        // RN 7.1: "El usuario solo puede tener una solicitud activa"
-        //         "Las solicitudes tienen 7 días para ser aprobadas"
+        //El usuario solo puede tener una solicitud activa
+        //Las solicitudes tienen 7 días para ser aprobadas
         boolean tieneActiva = solicitudRepository
                 .existsByUsuario_IdUsuarioAndEstadoAndFechaSolicitudAfter(
                         idUsuario,
@@ -95,12 +91,12 @@ public class DownloadRequestService {
         return PageResponseDTO.of(pagina.map(this::mapToDetailDTO));
     }
 
-    // ── Módulo 2.5 / 7 — Admin: aprobar o rechazar ────────────
+    //Admin: aprobar o rechazar
     @Transactional
     public DownloadRequestDetailDTO resolverSolicitud(Long idAdmin,
                                                       ResolveDownloadRequestDTO dto) {
-        // Validar que solo sea APROBADA o RECHAZADA
-        if (EstadoSolicitud.PENDIENTE.equals(dto.getDecision())) {
+        //Validar que solo sea APROBADA o RECHAZADA
+        if (EstadoSolicitud.PENDIENTE.equals(dto.getDesicion())) {
             throw new BusinessRuleException("La decisión debe ser APROBADA o RECHAZADA.");
         }
 
@@ -113,11 +109,11 @@ public class DownloadRequestService {
             throw new BusinessRuleException("Solo se pueden resolver solicitudes en estado PENDIENTE.");
         }
 
-        solicitud.setEstado(dto.getDecision());
+        solicitud.setEstado(dto.getDesicion());
         solicitudRepository.save(solicitud);
 
-        // Si se APRUEBA: desactivar permiso anterior y crear uno nuevo ACTIVO
-        if (EstadoSolicitud.APROBADA.equals(dto.getDecision())) {
+        //Si se APRUEBA: desactivar permiso anterior y crear uno nuevo ACTIVO
+        if (EstadoSolicitud.APROBADA.equals(dto.getDesicion())) {
             permisoRepository.findByUsuario_IdUsuarioAndPermisoDescarga(
                             solicitud.getUsuario().getIdUsuario(), EstadoPermiso.ACTIVO)
                     .ifPresent(p -> {
@@ -133,30 +129,29 @@ public class DownloadRequestService {
             permisoRepository.save(nuevoPermiso);
         }
 
-        // Notificar al usuario por correo
+        //Notificar al usuario por correo
         mailService.enviarResultadoSolicitud(
                 solicitud.getUsuario().getCorreo(),
                 solicitud.getUsuario().getNombreCompleto(),
-                dto.getDecision(),
+                dto.getDesicion(),
                 dto.getComentario());
 
         actionHistoryService.registrar(idAdmin, "SOLICITUD_RESUELTA",
                 "Solicitud #" + dto.getIdSolicitudDescarga()
-                        + " → " + dto.getDecision()
+                        + " → " + dto.getDesicion()
                         + ". Motivo: " + (dto.getComentario() != null ? dto.getComentario() : "-"));
 
-        log.info("Solicitud #{} resuelta: {}", dto.getIdSolicitudDescarga(), dto.getDecision());
+        log.info("Solicitud #{} resuelta: {}", dto.getIdSolicitudDescarga(), dto.getDesicion());
         return mapToDetailDTO(solicitud);
     }
 
-    // ── Verificar permiso activo ──────────────────────────────
+    //Verificar permiso activo
     @Transactional(readOnly = true)
     public boolean tienePermisoActivo(Long idUsuario) {
         return permisoRepository.existsByUsuario_IdUsuarioAndPermisoDescarga(
                 idUsuario, EstadoPermiso.ACTIVO);
     }
 
-    // ── Mappers privados ──────────────────────────────────────
     private DownloadRequestSummaryDTO mapToSummaryDTO(BeanSolicitudDescarga s) {
         String estadoPermiso = permisoRepository
                 .findBySolicitudDescarga_IdSolicitudDescarga(s.getIdSolicitudDescarga())

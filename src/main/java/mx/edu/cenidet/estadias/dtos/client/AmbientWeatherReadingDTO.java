@@ -32,7 +32,7 @@ public class AmbientWeatherReadingDTO {
 
     //Convierte la presión en inHg a hPa
     @JsonProperty("baromrelin")
-    private Float baromlin;
+    private Float baromrelin;
 
     //Tasa de lluvia en in/h a mm/h
     @JsonProperty("rainratein")
