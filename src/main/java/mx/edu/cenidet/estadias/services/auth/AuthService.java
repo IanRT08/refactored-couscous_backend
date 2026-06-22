@@ -57,12 +57,17 @@ public class AuthService implements UserDetailsService {
             desbloquear(usuario);
         }
 
-        //3. Verificar estado INACTIVO
+        //3. Verificar estado SIN_CONFIRMAR (registro pendiente de verificar correo)
+        if (EstadoUsuario.SIN_CONFIRMAR.equals(usuario.getEstado())) {
+            throw new BusinessRuleException("Cuenta pendiente de confirmación. Revisa tu correo para activarla.");
+        }
+
+        //4. Verificar estado INACTIVO (desactivada por el usuario o el administrador)
         if (EstadoUsuario.INACTIVO.equals(usuario.getEstado())) {
             throw new BusinessRuleException("Cuenta desactivada. Comunícate con el administrador.");
         }
 
-        //4. Verificar contraseña
+        //5. Verificar contraseña
         if (!passwordEncoder.matches(dto.getContrasenia(), usuario.getContrasenia())) {
             registrarIntentoFallido(usuario);
             throw new InvalidCredentialsException("Credenciales incorrectas.");
@@ -110,13 +115,14 @@ public class AuthService implements UserDetailsService {
             throw new BusinessRuleException("El correo ya está registrado.");
         }
 
-        //Estado INACTIVO hasta confirmar el correo
+        //Estado SIN_CONFIRMAR hasta confirmar el correo (distinto de INACTIVO,
+        //que se reserva para cuentas desactivadas por el usuario o el administrador)
         BeanUsuario nuevoUsuario = BeanUsuario.builder()
                 .nombreUsuario(dto.getNombreUsuario())
                 .correo(dto.getCorreo())
                 .nombreCompleto(dto.getNombreCompleto())
                 .contrasenia(passwordEncoder.encode(dto.getContrasenia()))
-                .estado(EstadoUsuario.INACTIVO)
+                .estado(EstadoUsuario.SIN_CONFIRMAR)
                 .intentosFallidos(0)
                 .build();
 

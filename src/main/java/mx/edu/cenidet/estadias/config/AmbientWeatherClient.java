@@ -23,6 +23,9 @@ public class AmbientWeatherClient {
 
     private static final ZoneId ZONA_CENIDET = ZoneId.of("America/Mexico_City");
 
+    //Límite máximo de registros que la API de Ambient Weather devuelve por petición
+    public static final int LIMITE_HISTORICO = 288;
+
     private final RestClient restClient;
 
     @Value("${awshef.ambientweather.api-key}")
@@ -56,7 +59,16 @@ public class AmbientWeatherClient {
                         "La API no devolvió dispositivos. Verifica applicationKey y apiKey.");
             }
 
-            AmbientWeatherReadingDTO lastData = dispositivos[0].getLastData();
+            //La cuenta puede tener más de un dispositivo: filtrar por la MAC
+            //de la estación del CENIDET en vez de asumir que es la primera.
+            AmbientWeatherDeviceDTO dispositivo = Arrays.stream(dispositivos)
+                    .filter(d -> macAddress.equalsIgnoreCase(d.getMacAddress()))
+                    .findFirst()
+                    .orElseThrow(() -> new ExternalApiException(SyncHealthService.FUENTE_AMBIENT,
+                            "No se encontró ningún dispositivo con MAC " + macAddress
+                                    + " en la cuenta de Ambient Weather."));
+
+            AmbientWeatherReadingDTO lastData = dispositivo.getLastData();
             if (lastData == null || lastData.getDate() == null) {
                 throw new ExternalApiException(SyncHealthService.FUENTE_AMBIENT,
                         "La estación del CENIDET no tiene datos recientes.");
@@ -87,7 +99,7 @@ public class AmbientWeatherClient {
                             .queryParam("applicationKey", applicationKey)
                             .queryParam("apiKey", apiKey)
                             .queryParam("endDate", endDateMs)
-                            .queryParam("limit", 288)
+                            .queryParam("limit", LIMITE_HISTORICO)
                             .build(macAddress))
                     .retrieve()
                     .body(AmbientWeatherReadingDTO[].class);

@@ -9,6 +9,8 @@ import mx.edu.cenidet.estadias.dtos.client.ThingSpeakFeedDTO;
 import mx.edu.cenidet.estadias.event.ConexionRecuperadaEvent;
 import mx.edu.cenidet.estadias.mappers.AmbientWeatherMapper;
 import mx.edu.cenidet.estadias.mappers.ThingSpeakMapper;
+import mx.edu.cenidet.estadias.modelos.lectura.BeanLectura;
+import mx.edu.cenidet.estadias.modelos.lecturaElectrica.BeanLecturaElectrica;
 import mx.edu.cenidet.estadias.repositorios.lectura.LecturaRepository;
 import mx.edu.cenidet.estadias.repositorios.lecturaElectrica.LecturaElectricaRepository;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -29,6 +31,18 @@ public class GapRecoveryService {
 
     //Umbral: si la brecha es ≤ 2 min, no hace falta recuperar
     private static final long MINUTOS_UMBRAL = 2;
+
+    //Tope de páginas para Ambient Weather: cada página trae como máximo
+    //AmbientWeatherClient.LIMITE_HISTORICO registros (la API solo soporta
+    //endDate + limit, no un rango "desde"). 60 páginas ≈ 60 días de histórico
+    //a intervalos de 5 min, más que suficiente para cualquier desconexión real.
+    private static final int MAX_PAGINAS_AMBIENT = 60;
+
+    //ThingSpeak sí soporta start/end explícitos, así que normalmente una sola
+    //llamada cubre toda la brecha. Este tope es una salvaguarda por si la API
+    //trunca la respuesta en una desconexión excepcionalmente larga.
+    private static final int MAX_PAGINAS_THINGSPEAK = 20;
+    private static final int LIMITE_SOSPECHA_TRUNCAMIENTO_TS = 8000;
 
     private final LecturaRepository lecturaRepository;
     private final LecturaElectricaRepository electricaRepository;
@@ -69,17 +83,49 @@ public class GapRecoveryService {
 
         log.info("[GAP-RECOVERY] Brecha climática: {} → {}", desde, hasta);
         try {
-            List<AmbientWeatherReadingDTO> historico =
-                    ambientWeatherClient.obtenerHistoricoPorRango(desde, hasta);
+            long totalGuardados = 0;
+            //La API de Ambient Weather solo acepta "endDate" + "limit" (no un
+            //"desde" real), así que para brechas largas hay que paginar hacia
+            //atrás: cada vuelta pide el tramo que termina justo antes del más
+            //antiguo de la página anterior, hasta cubrir toda la brecha.
+            LocalDateTime cursor = hasta;
+            int pagina = 0;
 
-            long guardados = historico.stream()
-                    .sorted(Comparator.comparing(AmbientWeatherReadingDTO::getDate))
-                    .map(ambientWeatherMapper::toEntity)
-                    .filter(l -> !lecturaRepository.existsByFechaLectura(l.getFechaLectura()))
-                    .map(lecturaRepository::save)
-                    .count();
+            while (cursor.isAfter(desde) && pagina < MAX_PAGINAS_AMBIENT) {
+                List<AmbientWeatherReadingDTO> historico =
+                        ambientWeatherClient.obtenerHistoricoPorRango(desde, cursor);
 
-            log.info("[GAP-RECOVERY] Climático: {} lecturas recuperadas.", guardados);
+                if (historico.isEmpty()) {
+                    break;
+                }
+
+                List<BeanLectura> lecturas = historico.stream()
+                        .map(ambientWeatherMapper::toEntity)
+                        .sorted(Comparator.comparing(BeanLectura::getFechaLectura))
+                        .toList();
+
+                totalGuardados += lecturas.stream()
+                        .filter(l -> !lecturaRepository.existsByFechaLectura(l.getFechaLectura()))
+                        .map(lecturaRepository::save)
+                        .count();
+
+                LocalDateTime masAntigua = lecturas.get(0).getFechaLectura();
+                pagina++;
+
+                //Sin avance o ya cubrimos el inicio de la brecha -> terminar
+                if (!masAntigua.isBefore(cursor) || !masAntigua.isAfter(desde)) {
+                    break;
+                }
+                //La API devuelve como máximo LIMITE_HISTORICO registros; si trajo
+                //menos, ya no hay más historia disponible antes de este punto
+                if (historico.size() < AmbientWeatherClient.LIMITE_HISTORICO) {
+                    break;
+                }
+                cursor = masAntigua.minusSeconds(1);
+            }
+
+            log.info("[GAP-RECOVERY] Climático: {} lecturas recuperadas en {} página(s).",
+                    totalGuardados, pagina);
         } catch (Exception ex) {
             log.error("[GAP-RECOVERY] Error recuperando brechas climáticas: {}", ex.getMessage());
         }
@@ -99,17 +145,45 @@ public class GapRecoveryService {
 
         log.info("[GAP-RECOVERY] Brecha eléctrica: {} → {}", desde, hasta);
         try {
-            List<ThingSpeakFeedDTO.Feed> feeds =
-                    thingSpeakClient.obtenerFeedsPorRango(desde, hasta);
+            long totalGuardados = 0;
+            //ThingSpeak sí soporta start/end, así que normalmente esto se resuelve
+            //en una sola página. Si la respuesta luce truncada (tope por defecto
+            //de la API), se continúa desde el último dato recibido hacia "hasta".
+            LocalDateTime cursorDesde = desde;
+            int pagina = 0;
 
-            long guardados = feeds.stream()
-                    .sorted(Comparator.comparing(ThingSpeakFeedDTO.Feed::getCreatedAt))
-                    .map(thingSpeakMapper::toEntity)
-                    .filter(l -> !electricaRepository.existsByFechaLectura(l.getFechaLectura()))
-                    .map(electricaRepository::save)
-                    .count();
+            while (cursorDesde.isBefore(hasta) && pagina < MAX_PAGINAS_THINGSPEAK) {
+                List<ThingSpeakFeedDTO.Feed> feeds =
+                        thingSpeakClient.obtenerFeedsPorRango(cursorDesde, hasta);
 
-            log.info("[GAP-RECOVERY] Eléctrico: {} lecturas recuperadas.", guardados);
+                if (feeds.isEmpty()) {
+                    break;
+                }
+
+                List<BeanLecturaElectrica> lecturas = feeds.stream()
+                        .map(thingSpeakMapper::toEntity)
+                        .sorted(Comparator.comparing(BeanLecturaElectrica::getFechaLectura))
+                        .toList();
+
+                totalGuardados += lecturas.stream()
+                        .filter(l -> !electricaRepository.existsByFechaLectura(l.getFechaLectura()))
+                        .map(electricaRepository::save)
+                        .count();
+                pagina++;
+
+                if (feeds.size() < LIMITE_SOSPECHA_TRUNCAMIENTO_TS) {
+                    break; // no hay indicio de truncamiento, ya se cubrió la brecha completa
+                }
+
+                LocalDateTime masReciente = lecturas.get(lecturas.size() - 1).getFechaLectura();
+                if (!masReciente.isAfter(cursorDesde)) {
+                    break; // sin avance, evitar bucle infinito
+                }
+                cursorDesde = masReciente.plusSeconds(1);
+            }
+
+            log.info("[GAP-RECOVERY] Eléctrico: {} lecturas recuperadas en {} página(s).",
+                    totalGuardados, pagina);
         } catch (Exception ex) {
             log.error("[GAP-RECOVERY] Error recuperando brechas eléctricas: {}", ex.getMessage());
         }

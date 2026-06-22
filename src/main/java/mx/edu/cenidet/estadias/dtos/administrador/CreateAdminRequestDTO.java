@@ -27,4 +27,8 @@ public class CreateAdminRequestDTO {
     @NotNull(message = "El tipo de administrador es obligatorio")
     private TipoAdministrador tipoAdministrador;
 
+    //RN 2.7: el superadmin debe confirmar la acción con su propia contraseña
+    @NotBlank(message = "Debes confirmar la acción con tu contraseña")
+    private String contraseniaConfirmacion;
+
 }

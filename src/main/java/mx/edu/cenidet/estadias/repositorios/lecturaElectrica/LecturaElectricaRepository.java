@@ -60,6 +60,27 @@ public interface LecturaElectricaRepository extends JpaRepository<BeanLecturaEle
     // ── Módulo 7 — Reporte completo sin paginación ────────────
     List<BeanLecturaElectrica> findByFechaLecturaBetween(LocalDateTime inicio, LocalDateTime fin);
 
+    // ── Módulo 6 — Moda por variable (ver nota en LecturaRepository) ──
+    @Query(value = "SELECT corriente FROM LecturaElectrica " +
+            "WHERE fechaLectura BETWEEN :inicio AND :fin AND corriente IS NOT NULL " +
+            "GROUP BY corriente ORDER BY COUNT(*) DESC, corriente ASC LIMIT 1", nativeQuery = true)
+    Optional<Float> modaCorriente(@Param("inicio") LocalDateTime inicio, @Param("fin") LocalDateTime fin);
+
+    @Query(value = "SELECT voltaje FROM LecturaElectrica " +
+            "WHERE fechaLectura BETWEEN :inicio AND :fin AND voltaje IS NOT NULL " +
+            "GROUP BY voltaje ORDER BY COUNT(*) DESC, voltaje ASC LIMIT 1", nativeQuery = true)
+    Optional<Float> modaVoltaje(@Param("inicio") LocalDateTime inicio, @Param("fin") LocalDateTime fin);
+
+    @Query(value = "SELECT potencia FROM LecturaElectrica " +
+            "WHERE fechaLectura BETWEEN :inicio AND :fin AND potencia IS NOT NULL " +
+            "GROUP BY potencia ORDER BY COUNT(*) DESC, potencia ASC LIMIT 1", nativeQuery = true)
+    Optional<Float> modaPotencia(@Param("inicio") LocalDateTime inicio, @Param("fin") LocalDateTime fin);
+
+    @Query(value = "SELECT energia FROM LecturaElectrica " +
+            "WHERE fechaLectura BETWEEN :inicio AND :fin AND energia IS NOT NULL " +
+            "GROUP BY energia ORDER BY COUNT(*) DESC, energia ASC LIMIT 1", nativeQuery = true)
+    Optional<Float> modaEnergia(@Param("inicio") LocalDateTime inicio, @Param("fin") LocalDateTime fin);
+
     // ─────────────────────────────────────────────────────────
     // Projection interface — Módulo 6
     // ─────────────────────────────────────────────────────────

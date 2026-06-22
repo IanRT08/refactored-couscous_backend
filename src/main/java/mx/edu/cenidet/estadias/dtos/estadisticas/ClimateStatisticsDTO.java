@@ -16,25 +16,30 @@ public class ClimateStatisticsDTO {
     private Double promedioTemperatura;
     private Double maxTemperatura;
     private Double minTemperatura;
+    private Double modaTemperatura;
 
     //Viento
     private Double promedioViento;
     private Double maxViento;
     private Double minViento;
+    private Double modaViento;
 
     //Humedad
     private Double promedioHumedad;
     private Double maxHumedad;
     private Double minHumedad;
+    private Double modaHumedad;
 
     //Radiacion solar
     private Double promedioRadiacion;
     private Double maxRadiacion;
     private Double minRadiacion;
+    private Double modaRadiacion;
 
     //Presion
     private Double promedioPresion;
     private Double maxPresion;
     private Double minPresion;
+    private Double modaPresion;
 
 }

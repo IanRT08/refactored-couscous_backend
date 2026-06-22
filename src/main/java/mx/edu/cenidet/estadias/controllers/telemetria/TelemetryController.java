@@ -8,6 +8,7 @@ import mx.edu.cenidet.estadias.dtos.telemetria.ElectricReadingDTO;
 import mx.edu.cenidet.estadias.dtos.telemetria.LatestSummaryDTO;
 import mx.edu.cenidet.estadias.dtos.telemetria.TelemetryFilterDTO;
 import mx.edu.cenidet.estadias.excepciones.BusinessRuleException;
+import mx.edu.cenidet.estadias.excepciones.ResourceNotFoundException;
 import mx.edu.cenidet.estadias.services.sync.SyncHealthService;
 import mx.edu.cenidet.estadias.services.telemetry.ClimateReadingService;
 import mx.edu.cenidet.estadias.services.telemetry.ElectricReadingService;
@@ -28,12 +29,29 @@ public class TelemetryController {
     private final SyncHealthService syncHealthService;
 
     //Dashboard principal (mapa + tarjetas de resumen).
+    //Si una de las dos fuentes aún no tiene datos (p.ej. recién desplegado el
+    //sistema, o solo una API está fallando), se muestra lo que sí está
+    //disponible en vez de fallar el resumen completo.
     @GetMapping("/resumen")
     public ResponseEntity<ApiResponseDTO<LatestSummaryDTO>> obtenerResumen() {
 
+        ClimateReadingDTO climatica = null;
+        try {
+            climatica = climateReadingService.obtenerUltima();
+        } catch (ResourceNotFoundException ignored) {
+            // Sin lecturas climáticas todavía; se deja null y se informa con datosEnTiempoReal.
+        }
+
+        ElectricReadingDTO electrica = null;
+        try {
+            electrica = electricReadingService.obtenerUltima();
+        } catch (ResourceNotFoundException ignored) {
+            // Sin lecturas eléctricas todavía; se deja null y se informa con datosEnTiempoReal.
+        }
+
         LatestSummaryDTO resumen = LatestSummaryDTO.builder()
-                .ultimaLecturaClimatica(climateReadingService.obtenerUltima())
-                .ultimaLecturaElectrica(electricReadingService.obtenerUltima())
+                .ultimaLecturaClimatica(climatica)
+                .ultimaLecturaElectrica(electrica)
                 .datosEnTiempoReal(
                         !syncHealthService.estaEnError(SyncHealthService.FUENTE_AMBIENT)
                                 && !syncHealthService.estaEnError(SyncHealthService.FUENTE_THINGSPEAK))

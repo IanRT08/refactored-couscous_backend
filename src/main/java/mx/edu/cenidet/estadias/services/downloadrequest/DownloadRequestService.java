@@ -56,10 +56,24 @@ public class DownloadRequestService {
                     "Ya tienes una solicitud pendiente. Espera la resolución o que pasen 7 días para enviar otra.");
         }
 
+        // RN 7.1 (Nota): el nombre completo solo es obligatorio si el usuario
+        // no lo llenó en su registro. Si lo manda aquí, se usa para completar su perfil.
+        BeanUsuario usuario = usuarioRepository.findById(idUsuario)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado: " + idUsuario));
+
+        if (usuario.getNombreCompleto() == null || usuario.getNombreCompleto().isBlank()) {
+            if (dto.getNombreCompleto() == null || dto.getNombreCompleto().isBlank()) {
+                throw new BusinessRuleException(
+                        "El nombre completo es obligatorio, ya que no lo registraste previamente.");
+            }
+            usuario.setNombreCompleto(dto.getNombreCompleto());
+            usuarioRepository.save(usuario);
+        }
+
         BeanSolicitudDescarga solicitud = BeanSolicitudDescarga.builder()
                 .motivo(dto.getMotivo())
                 .estado(EstadoSolicitud.PENDIENTE)
-                .usuario(usuarioRepository.getReferenceById(idUsuario))
+                .usuario(usuario)
                 .build();
 
         solicitud = solicitudRepository.save(solicitud);

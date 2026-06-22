@@ -9,8 +9,10 @@ import lombok.*;
 @AllArgsConstructor
 public class CreateDownloadRequestDTO {
 
-    @NotBlank(message = "El nombre completo es obligatorio")
+    //Obligatorio solo si el usuario no lo registró en su perfil (validado en el Service).
     @Size(max = 90, message = "El nombre completo no debe superar los 90 caracteres")
+    @Pattern(regexp = "^[a-zA-ZáéíóúÁÉÍÓÚñÑ]+(?: [a-zA-ZáéíóúÁÉÍÓÚñÑ]+)*$",
+            message = "El nombre solo debe contener letras y un solo espacio entre palabras")
     private String nombreCompleto;
 
     @NotBlank(message = "El motivo de la solicitud es obligatorio")

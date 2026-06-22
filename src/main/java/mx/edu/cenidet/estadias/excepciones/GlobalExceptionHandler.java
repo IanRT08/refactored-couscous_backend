@@ -63,17 +63,6 @@ public class GlobalExceptionHandler {
                 .body(ApiResponseDTO.error(ex.getMessage()));
     }
 
-    //Lectura duplicada
-    @ExceptionHandler(DuplicateReadingException.class)
-    public ResponseEntity<ApiResponseDTO<?>> handleDuplicate(
-            DuplicateReadingException ex) {
-
-        log.warn("Lectura duplicada ignorada: {}", ex.getMessage());
-        return ResponseEntity
-                .status(HttpStatus.CONFLICT)
-                .body(ApiResponseDTO.error(ex.getMessage()));
-    }
-
     //Error al generar reporte: Error 500
     @ExceptionHandler(ReportGenerationException.class)
     public ResponseEntity<ApiResponseDTO<?>> handleReport(

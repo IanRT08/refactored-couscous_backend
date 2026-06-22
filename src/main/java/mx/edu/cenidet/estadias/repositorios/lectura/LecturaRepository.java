@@ -77,6 +77,36 @@ public interface LecturaRepository extends JpaRepository<BeanLectura, Long> {
     // El ReportService lo llama solo cuando el usuario tiene permiso.
     List<BeanLectura> findByFechaLecturaBetween(LocalDateTime inicio, LocalDateTime fin);
 
+    // ── Módulo 6 — Moda por variable ──────────────────────────
+    // MySQL no tiene una función de agregado MODE(); se obtiene con
+    // GROUP BY + COUNT(*) DESC. Se usa nativeQuery porque JPQL no
+    // soporta "ORDER BY COUNT(*)" junto con un GROUP BY simple así.
+    // Empate -> se desempata con el valor más pequeño (determinista).
+    @Query(value = "SELECT temperatura FROM Lectura " +
+            "WHERE fechaLectura BETWEEN :inicio AND :fin AND temperatura IS NOT NULL " +
+            "GROUP BY temperatura ORDER BY COUNT(*) DESC, temperatura ASC LIMIT 1", nativeQuery = true)
+    Optional<Float> modaTemperatura(@Param("inicio") LocalDateTime inicio, @Param("fin") LocalDateTime fin);
+
+    @Query(value = "SELECT viento FROM Lectura " +
+            "WHERE fechaLectura BETWEEN :inicio AND :fin AND viento IS NOT NULL " +
+            "GROUP BY viento ORDER BY COUNT(*) DESC, viento ASC LIMIT 1", nativeQuery = true)
+    Optional<Float> modaViento(@Param("inicio") LocalDateTime inicio, @Param("fin") LocalDateTime fin);
+
+    @Query(value = "SELECT humedad FROM Lectura " +
+            "WHERE fechaLectura BETWEEN :inicio AND :fin AND humedad IS NOT NULL " +
+            "GROUP BY humedad ORDER BY COUNT(*) DESC, humedad ASC LIMIT 1", nativeQuery = true)
+    Optional<Float> modaHumedad(@Param("inicio") LocalDateTime inicio, @Param("fin") LocalDateTime fin);
+
+    @Query(value = "SELECT radiacion FROM Lectura " +
+            "WHERE fechaLectura BETWEEN :inicio AND :fin AND radiacion IS NOT NULL " +
+            "GROUP BY radiacion ORDER BY COUNT(*) DESC, radiacion ASC LIMIT 1", nativeQuery = true)
+    Optional<Float> modaRadiacion(@Param("inicio") LocalDateTime inicio, @Param("fin") LocalDateTime fin);
+
+    @Query(value = "SELECT presion FROM Lectura " +
+            "WHERE fechaLectura BETWEEN :inicio AND :fin AND presion IS NOT NULL " +
+            "GROUP BY presion ORDER BY COUNT(*) DESC, presion ASC LIMIT 1", nativeQuery = true)
+    Optional<Float> modaPresion(@Param("inicio") LocalDateTime inicio, @Param("fin") LocalDateTime fin);
+
     // ─────────────────────────────────────────────────────────
     // Projection interface — Módulo 6
     // Los alias del SELECT de calcularEstadisticas mapean 1-a-1

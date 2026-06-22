@@ -28,6 +28,9 @@ import java.util.Base64;
 @Slf4j
 public class UserService {
 
+    //Módulo 1.5 RN: "La foto de perfil no debe pesar más de 10 MB"
+    private static final long MAX_FOTO_BYTES = 10L * 1024 * 1024;
+
     private final UsuarioRepository usuarioRepository;
     private final AdministradorRepository administradorRepository;
     private final PermisoDescargaRepository permisoDescargaRepository;
@@ -50,11 +53,31 @@ public class UserService {
     public UserProfileDTO actualizarPerfil(Long idUsuario, UpdateProfileRequestDTO dto) {
         BeanUsuario usuario = buscarUsuarioPorId(idUsuario);
 
+        //RN 1.5: el nombre de usuario no debe repetirse en el sistema
+        if (dto.getNombreUsuario() != null && !dto.getNombreUsuario().isBlank()
+                && !dto.getNombreUsuario().equals(usuario.getNombreUsuario())) {
+            if (usuarioRepository.existsByNombreUsuario(dto.getNombreUsuario())) {
+                throw new BusinessRuleException("El nombre de usuario ya está en uso.");
+            }
+            usuario.setNombreUsuario(dto.getNombreUsuario());
+        }
+
         if (dto.getNombreCompleto() != null && !dto.getNombreCompleto().isBlank()) {
             usuario.setNombreCompleto(dto.getNombreCompleto());
         }
+
         if (dto.getFotoPerfil() != null && !dto.getFotoPerfil().isBlank()) {
-            usuario.setFotoPerfil(Base64.getDecoder().decode(dto.getFotoPerfil()));
+            byte[] fotoBytes;
+            try {
+                fotoBytes = Base64.getDecoder().decode(dto.getFotoPerfil());
+            } catch (IllegalArgumentException e) {
+                throw new BusinessRuleException("La foto de perfil no tiene un formato válido.");
+            }
+            //RN 1.5: "La foto de perfil no debe pesar más de 10 MB"
+            if (fotoBytes.length > MAX_FOTO_BYTES) {
+                throw new BusinessRuleException("Foto muy pesada, por favor elija otra");
+            }
+            usuario.setFotoPerfil(fotoBytes);
         }
 
         usuarioRepository.save(usuario);

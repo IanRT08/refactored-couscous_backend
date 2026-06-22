@@ -28,8 +28,9 @@ public class BeanPermisoDescarga {
     @JoinColumn(name = "Usuario_idUsuario", nullable = false)
     private BeanUsuario usuario;
 
+    //Un permiso puede otorgarse directamente por un administrador
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "solicitudDescarga_idSolicitudDescarga", nullable = false, unique = true)
+    @JoinColumn(name = "solicitudDescarga_idSolicitudDescarga", unique = true)
     private BeanSolicitudDescarga solicitudDescarga;
 
 }
