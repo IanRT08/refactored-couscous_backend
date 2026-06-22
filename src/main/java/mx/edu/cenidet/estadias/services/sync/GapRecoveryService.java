@@ -2,6 +2,8 @@ package mx.edu.cenidet.estadias.services.sync;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import mx.edu.cenidet.estadias.config.AmbientWeatherClient;
+import mx.edu.cenidet.estadias.config.ThingSpeakClient;
 import mx.edu.cenidet.estadias.dtos.client.AmbientWeatherReadingDTO;
 import mx.edu.cenidet.estadias.dtos.client.ThingSpeakFeedDTO;
 import mx.edu.cenidet.estadias.event.ConexionRecuperadaEvent;
