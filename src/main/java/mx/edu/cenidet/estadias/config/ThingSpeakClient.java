@@ -1,0 +1,110 @@
+package mx.edu.cenidet.estadias.config;
+
+import lombok.extern.slf4j.Slf4j;
+import mx.edu.cenidet.estadias.dtos.client.ThingSpeakFeedDTO;
+import mx.edu.cenidet.estadias.excepciones.ExternalApiException;
+import mx.edu.cenidet.estadias.services.sync.SyncHealthService;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
+
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Collections;
+import java.util.List;
+
+@Component
+@Slf4j
+public class ThingSpeakClient {
+
+    //ThingSpeak espera las fechas en UTC con este formato
+    private static final DateTimeFormatter TS_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+    private static final ZoneId ZONA_CENIDET = ZoneId.of("America/Mexico_City");
+
+    private final RestClient restClient;
+
+    @Value("${awshef.thingspeak.read-api-key}")
+    private String readApiKey;
+
+    @Value("${awshef.thingspeak.channel-id}")
+    private String channelId;
+
+    public ThingSpeakClient(
+            @Qualifier("thingSpeakRestClient") RestClient restClient) {
+        this.restClient = restClient;
+    }
+
+    //Último feed disponible
+    public ThingSpeakFeedDTO.Feed obtenerUltimoFeed() {
+        try {
+            String channelIdValue = channelId;
+
+            ThingSpeakFeedDTO respuesta = restClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/channels/{id}/feeds.json")
+                            .queryParam("api_key", readApiKey)
+                            .queryParam("results", 1)
+                            .build(channelIdValue))
+                    .retrieve()
+                    .body(ThingSpeakFeedDTO.class);
+
+            if (respuesta == null
+                    || respuesta.getFeeds() == null
+                    || respuesta.getFeeds().isEmpty()) {
+                throw new ExternalApiException(SyncHealthService.FUENTE_THINGSPEAK,
+                        "ThingSpeak no devolvió feeds para el canal " + channelId);
+            }
+
+            ThingSpeakFeedDTO.Feed feed = respuesta.getFeeds()
+                    .get(respuesta.getFeeds().size() - 1);
+
+            log.debug("[TS-CLIENT] Feed obtenido: {}", feed.getCreatedAt());
+            return feed;
+
+        } catch (RestClientException ex) {
+            throw new ExternalApiException(SyncHealthService.FUENTE_THINGSPEAK,
+                    "Error HTTP al consultar ThingSpeak: " + ex.getMessage(), ex);
+        }
+    }
+
+    //Feeds por rango de fechas
+    public List<ThingSpeakFeedDTO.Feed> obtenerFeedsPorRango(
+            LocalDateTime desde, LocalDateTime hasta) {
+        try {
+            String startUTC = desde
+                    .atZone(ZONA_CENIDET)
+                    .withZoneSameInstant(ZoneId.of("UTC"))
+                    .format(TS_DATE_FORMAT);
+            String endUTC = hasta
+                    .atZone(ZONA_CENIDET)
+                    .withZoneSameInstant(ZoneId.of("UTC"))
+                    .format(TS_DATE_FORMAT);
+            String channelIdValue = channelId;
+            ThingSpeakFeedDTO respuesta = restClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/channels/{id}/feeds.json")
+                            .queryParam("api_key", readApiKey)
+                            .queryParam("start", startUTC)
+                            .queryParam("end", endUTC)
+                            .build(channelIdValue))
+                    .retrieve()
+                    .body(ThingSpeakFeedDTO.class);
+            if (respuesta == null || respuesta.getFeeds() == null) {
+                log.info("[TS-CLIENT] Sin feeds para rango {} → {}", desde, hasta);
+                return Collections.emptyList();
+            }
+            log.info("[TS-CLIENT] Histórico recibido: {} feeds para rango {} → {}",
+                    respuesta.getFeeds().size(), desde, hasta);
+            return respuesta.getFeeds();
+        } catch (RestClientException ex) {
+            throw new ExternalApiException(SyncHealthService.FUENTE_THINGSPEAK,
+                    "Error HTTP al consultar histórico de ThingSpeak: " + ex.getMessage(), ex);
+        }
+    }
+
+}
