@@ -59,6 +59,18 @@ public class AdminController {
         return ResponseEntity.ok(ApiResponseDTO.ok("Estado del usuario actualizado.", adminService.cambiarEstadoUsuario(idAdmin, idUsuario, dto)));
     }
 
+    //Editar permiso de descarga de un usuario (acción directa, sin solicitud)
+    @PutMapping("/usuarios/{idUsuario}/permiso-descarga")
+    @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'SUPERADMINISTRADOR')")
+    public ResponseEntity<ApiResponseDTO<Void>> cambiarPermisoDescarga(
+            @PathVariable Long idUsuario,
+            @Valid @RequestBody UpdateDownloadPermissionRequestDTO dto,
+            HttpServletRequest request) {
+        Long idAdmin = authUtils.getIdUsuarioActual(request);
+        adminService.cambiarPermisoDescarga(idAdmin, idUsuario, dto);
+        return ResponseEntity.ok(ApiResponseDTO.ok("Permiso de descarga actualizado."));
+    }
+
     //Ver lista de admins
     @GetMapping("/administradores")
     @PreAuthorize("hasRole('SUPERADMINISTRADOR')")

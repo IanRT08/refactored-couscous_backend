@@ -11,9 +11,12 @@ import org.springframework.stereotype.Service;
 import mx.edu.cenidet.estadias.dtos.comunes.PageResponseDTO;
 import mx.edu.cenidet.estadias.modelos.administrador.BeanAdministrador;
 import mx.edu.cenidet.estadias.modelos.administrador.TipoAdministrador;
+import mx.edu.cenidet.estadias.modelos.permisosDescarga.BeanPermisoDescarga;
+import mx.edu.cenidet.estadias.modelos.permisosDescarga.EstadoPermiso;
 import mx.edu.cenidet.estadias.modelos.usuario.BeanUsuario;
 import mx.edu.cenidet.estadias.modelos.usuario.EstadoUsuario;
 import mx.edu.cenidet.estadias.repositorios.administrador.AdministradorRepository;
+import mx.edu.cenidet.estadias.repositorios.permisoDescarga.PermisoDescargaRepository;
 import mx.edu.cenidet.estadias.repositorios.usuario.UsuarioRepository;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -22,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -31,6 +35,7 @@ public class AdminService {
 
     private final UsuarioRepository usuarioRepository;
     private final AdministradorRepository administradorRepository;
+    private final PermisoDescargaRepository permisoDescargaRepository;
     private final ActionHistoryService actionHistoryService;
     private final MailService mailService;
     private final PasswordEncoder passwordEncoder;
@@ -58,6 +63,22 @@ public class AdminService {
     @Transactional
     public UserSummaryDTO cambiarEstadoUsuario(Long idAdmin, Long idUsuario, UpdateUserStatusRequestDTO dto) {
         verificarEsAdmin(idAdmin);
+
+        //Ningún administrador (ni el superadmin) puede cambiar su propio estado
+        if (idAdmin.equals(idUsuario)) {
+            throw new BusinessRuleException("No puedes cambiar tu propio estado.");
+        }
+
+        //SIN_CONFIRMAR es un estado transitorio del registro, no debe asignarse manualmente
+        if (EstadoUsuario.SIN_CONFIRMAR.equals(dto.getNuevoEstado())) {
+            throw new BusinessRuleException("No se puede asignar manualmente el estado SIN_CONFIRMAR.");
+        }
+
+        //Solo el superadministrador puede cambiar el estado de OTROS administradores
+        if (administradorRepository.existsByUsuario_IdUsuario(idUsuario)) {
+            verificarEsSuperAdmin(idAdmin);
+        }
+
         BeanUsuario usuario = buscarPorId(idUsuario);
         EstadoUsuario estadoAnterior = usuario.getEstado();
         usuario.setEstado(dto.getNuevoEstado());
@@ -80,6 +101,12 @@ public class AdminService {
     @Transactional
     public AdminSummaryDTO crearAdministrador(Long idSuperAdmin, CreateAdminRequestDTO dto) {
         verificarEsSuperAdmin(idSuperAdmin);
+
+        //El superadmin debe confirmar la acción con su propia contraseña
+        BeanUsuario superAdminActual = buscarPorId(idSuperAdmin);
+        if (!passwordEncoder.matches(dto.getContraseniaConfirmacion(), superAdminActual.getContrasenia())) {
+            throw new BusinessRuleException("Contraseña incorrecta. No se pudo confirmar la acción.");
+        }
 
         if (usuarioRepository.existsByNombreUsuario(dto.getNombreUsuario())) {
             throw new BusinessRuleException("El nombre de usuario ya está en uso.");
@@ -126,6 +153,39 @@ public class AdminService {
                 .stream()
                 .map(a -> mapToAdminSummaryDTO(a, a.getUsuario()))
                 .collect(Collectors.toList());
+    }
+
+    //Editar permiso de descarga de un usuario
+    @Transactional
+    public void cambiarPermisoDescarga(Long idAdmin, Long idUsuario, UpdateDownloadPermissionRequestDTO dto) {
+        verificarEsAdmin(idAdmin);
+        BeanUsuario usuario = buscarPorId(idUsuario);
+
+        Optional<BeanPermisoDescarga> permisoActivo = permisoDescargaRepository
+                .findByUsuario_IdUsuarioAndPermisoDescarga(idUsuario, EstadoPermiso.ACTIVO);
+
+        if (EstadoPermiso.ACTIVO.equals(dto.getNuevoPermiso())) {
+            if (permisoActivo.isEmpty()) {
+                BeanPermisoDescarga nuevo = BeanPermisoDescarga.builder()
+                        .permisoDescarga(EstadoPermiso.ACTIVO)
+                        .usuario(usuario)
+                        .solicitudDescarga(null)
+                        .build();
+                permisoDescargaRepository.save(nuevo);
+            }
+        } else {
+            permisoActivo.ifPresent(p -> {
+                p.setPermisoDescarga(EstadoPermiso.INACTIVO);
+                permisoDescargaRepository.save(p);
+            });
+        }
+
+        actionHistoryService.registrar(idAdmin, "PERMISO_DESCARGA_CAMBIADO",
+                String.format("Usuario %s: permiso de descarga → %s. Motivo: %s",
+                        usuario.getNombreUsuario(), dto.getNuevoPermiso(),
+                        dto.getMotivo() != null ? dto.getMotivo() : "Sin motivo especificado"));
+
+        log.info("Permiso de descarga de {} cambiado a {}", usuario.getNombreUsuario(), dto.getNuevoPermiso());
     }
 
     private void verificarEsAdmin(Long idUsuario) {
