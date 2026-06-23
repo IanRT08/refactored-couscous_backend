@@ -76,7 +76,7 @@ public class GapRecoveryService {
         }
     }
 
-    // ── Disparadores de evento ────────────────────────────────
+    //Disparadores de evento
 
     @EventListener(ApplicationReadyEvent.class)
     public void alIniciar() {

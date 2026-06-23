@@ -24,9 +24,6 @@ public class ThingSpeakSyncService {
     private final ThingSpeakMapper thingSpeakMapper;
     private final SyncHealthService          syncHealthService;
 
-    // application.yml: sync.thingspeak.interval-ms: 30000
-    // Los dos canales (Fotovoltaico, Eólico) se sincronizan en la misma
-    // pasada; un fallo en uno no debe impedir que el otro se guarde.
     @Scheduled(fixedDelayString = "${sync.thingspeak.interval-ms:30000}")
     public void sincronizar() {
         for (FuenteElectrica fuente : FuenteElectrica.values()) {

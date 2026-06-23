@@ -47,14 +47,14 @@ public class TelemetryController {
         try {
             fotovoltaica = electricReadingService.obtenerUltima(FuenteElectrica.FOTOVOLTAICO);
         } catch (ResourceNotFoundException ignored) {
-            // Sin lecturas de este canal todavía; se deja null y se informa con datosEnTiempoReal.
+            //Sin lecturas de este canal todavía; se deja null y se informa con datosEnTiempoReal.
         }
 
         ElectricReadingDTO eolica = null;
         try {
             eolica = electricReadingService.obtenerUltima(FuenteElectrica.EOLICO);
         } catch (ResourceNotFoundException ignored) {
-            // Sin lecturas de este canal todavía; se deja null y se informa con datosEnTiempoReal.
+            //Sin lecturas de este canal todavía; se deja null y se informa con datosEnTiempoReal.
         }
 
         LatestSummaryDTO resumen = LatestSummaryDTO.builder()

@@ -16,21 +16,21 @@ import java.util.Optional;
 @Repository
 public interface LecturaElectricaRepository extends JpaRepository<BeanLecturaElectrica, Long> {
 
-    // ── Módulo 3.2 — Idempotencia (por canal/fuente) ──────────
+    //Idempotencia (por canal/fuente)
     boolean existsByFechaLecturaAndFuente(LocalDateTime fechaLectura, FuenteElectrica fuente);
 
-    // ── Módulo 4 — Dashboard / Gap Recovery: última lectura por fuente ──
+    //Dashboard / Gap Recovery: última lectura por fuente
     Optional<BeanLecturaElectrica> findTopByFuenteOrderByFechaLecturaDesc(FuenteElectrica fuente);
 
-    // ── Respaldo histórico — última lectura ANTES de una fecha dada ──
-    // Necesario para encadenar el cálculo de energía cuando se rellenan
-    // meses antiguos por debajo de datos que ya existen en la tabla.
+    //Respaldo histórico — última lectura ANTES de una fecha dada
+    //Necesario para encadenar el cálculo de energía cuando se rellenan
+    //meses antiguos por debajo de datos que ya existen en la tabla.
     Optional<BeanLecturaElectrica> findTopByFuenteAndFechaLecturaLessThanOrderByFechaLecturaDesc(
             FuenteElectrica fuente, LocalDateTime fecha);
 
-    // ── Gap Recovery — chequeo de duplicados en bloque ────────
-    // Una sola consulta por página en vez de un existsBy... por cada
-    // registro descargado (evita N+1 contra la BD durante el respaldo inicial).
+    //Gap Recovery — chequeo de duplicados en bloque
+    //Una sola consulta por página en vez de un existsBy... por cada
+    //registro descargado (evita N+1 contra la BD durante el respaldo inicial).
     @Query("SELECT le.fechaLectura FROM BeanLecturaElectrica le " +
             "WHERE le.fuente = :fuente AND le.fechaLectura BETWEEN :inicio AND :fin")
     List<LocalDateTime> findFechasByFuenteAndFechaLecturaBetween(
@@ -38,16 +38,16 @@ public interface LecturaElectricaRepository extends JpaRepository<BeanLecturaEle
             @Param("inicio") LocalDateTime inicio,
             @Param("fin")    LocalDateTime fin);
 
-    // ── Módulo 5 — Gráficas eléctricas paginadas (por fuente) ─
+    //Gráficas eléctricas paginadas (por fuente)
     Page<BeanLecturaElectrica> findByFuenteAndFechaLecturaBetween(
             FuenteElectrica fuente,
             LocalDateTime inicio,
             LocalDateTime fin,
             Pageable pageable);
 
-    // ── Módulo 6 — Estadísticas eléctricas agregadas por fuente ──
-    // energiaTotalPeriodo = SUM de los incrementos: es la métrica que sí
-    // tiene sentido sumar entre Fotovoltaico y Eólico para la vista combinada.
+    //Estadísticas eléctricas agregadas por fuente
+    //energiaTotalPeriodo = SUM de los incrementos: es la métrica que sí
+    //tiene sentido sumar entre Fotovoltaico y Eólico para la vista combinada.
     @Query("""
             SELECT AVG(le.voltaje)   AS promedioVoltaje,
                    MAX(le.voltaje)   AS maxVoltaje,
@@ -73,14 +73,14 @@ public interface LecturaElectricaRepository extends JpaRepository<BeanLecturaEle
             @Param("inicio") LocalDateTime inicio,
             @Param("fin")    LocalDateTime fin);
 
-    // ── Módulo 7 — Reporte completo sin paginación (por fuente) ──
+    //Reporte completo sin paginación (por fuente)
     List<BeanLecturaElectrica> findByFuenteAndFechaLecturaBetweenOrderByFechaLecturaAsc(
             FuenteElectrica fuente, LocalDateTime inicio, LocalDateTime fin);
 
-    // ── Módulo 6 — Moda por variable y fuente (ver nota en LecturaRepository) ──
-    // fuente se recibe como String (fuente.name()) para que el binding nativo
-    // sea directo contra la columna VARCHAR, sin depender de cómo Hibernate
-    // serialice un parámetro de tipo enum en consultas nativas.
+    //Moda por variable y fuente
+    //fuente se recibe como String (fuente.name()) para que el binding nativo
+    //sea directo contra la columna VARCHAR, sin depender de cómo Hibernate
+    //serialice un parámetro de tipo enum en consultas nativas.
     @Query(value = "SELECT voltaje FROM LecturaElectrica " +
             "WHERE fuente = :fuente AND fechaLectura BETWEEN :inicio AND :fin AND voltaje IS NOT NULL " +
             "GROUP BY voltaje ORDER BY COUNT(*) DESC, voltaje ASC LIMIT 1", nativeQuery = true)
@@ -106,9 +106,6 @@ public interface LecturaElectricaRepository extends JpaRepository<BeanLecturaEle
             "GROUP BY energia ORDER BY COUNT(*) DESC, energia ASC LIMIT 1", nativeQuery = true)
     Optional<Float> modaEnergia(@Param("fuente") String fuente, @Param("inicio") LocalDateTime inicio, @Param("fin") LocalDateTime fin);
 
-    // ─────────────────────────────────────────────────────────
-    // Projection interface — Módulo 6
-    // ─────────────────────────────────────────────────────────
     interface EstadisticasElectricas {
         Double getPromedioVoltaje();
         Double getMaxVoltaje();

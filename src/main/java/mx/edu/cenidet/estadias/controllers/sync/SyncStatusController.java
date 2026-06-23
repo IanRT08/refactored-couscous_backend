@@ -9,11 +9,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
-// Módulo 3.3 — Estado de las sincronizaciones en tiempo real.
-// Solo accesible para administradores para diagnóstico del sistema.
-// El frontend (Módulo 3 RN: "notificar si 3 fallos consecutivos")
-// también puede usar /api/alertas/sistema para mostrar esto al usuario,
-// pero este endpoint da más detalle técnico al administrador.
 @RestController
 @RequestMapping("/api/sync")
 @RequiredArgsConstructor
@@ -22,13 +17,6 @@ public class SyncStatusController {
 
     private final SyncHealthService syncHealthService;
 
-    // ── GET /api/sync/estado ──────────────────────────────────
-    // Módulo 3.3 — Estado actual de los dos orígenes de sincronización.
-    // Respuesta:
-    // {
-    //   "AMBIENT_WEATHER": { "fallosConsecutivos": 0, "enError": false },
-    //   "THINGSPEAK":      { "fallosConsecutivos": 0, "enError": false }
-    // }
     @GetMapping("/estado")
     public ResponseEntity<ApiResponseDTO<Map<String, Object>>> obtenerEstado() {
 

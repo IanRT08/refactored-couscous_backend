@@ -16,47 +16,43 @@ import java.util.Optional;
 @Repository
 public interface LecturaRepository extends JpaRepository<BeanLectura, Long> {
 
-    // ── Módulo 3.2 — Idempotencia / no duplicar registros ────
-    // Antes de cada INSERT el SyncService consulta esto.
-    // El constraint UNIQUE en la tabla es la red de seguridad;
-    // este check evita el costo de lanzar una excepción de BD.
+    //Idempotencia / no duplicar registros
     boolean existsByFechaLectura(LocalDateTime fechaLectura);
 
-    // ── Módulo 4 — Dashboard: última lectura disponible ───────
+    //Dashboard: última lectura disponible
     Optional<BeanLectura> findTopByOrderByFechaLecturaDesc();
 
-    // ── Gap Recovery — Auditoría del último timestamp guardado ─
-    // GapRecoveryService llama esto al arrancar y al reconectar.
+    //Auditoría del último timestamp guardado ─
     @Query("SELECT MAX(l.fechaLectura) FROM BeanLectura l")
     Optional<LocalDateTime> findMaxFechaLectura();
 
-    // ── Módulo 3 — Gap Recovery: recuperar rango perdido ──────
-    // Devuelve lecturas en orden cronológico ascendente para que
-    // el Service las procese en secuencia sin generar huecos.
+    //Gap Recovery: recuperar rango perdido
+    //Devuelve lecturas en orden cronológico ascendente para que
+    //el Service las procese en secuencia sin generar huecos.
     List<BeanLectura> findByFechaLecturaBetweenOrderByFechaLecturaAsc(
             LocalDateTime inicio,
             LocalDateTime fin);
 
-    // ── Gap Recovery — chequeo de duplicados en bloque ────────
-    // Una sola consulta por página en vez de un existsBy... por cada
-    // registro descargado (evita N+1 contra la BD durante el respaldo inicial).
+    //Gap Recovery chequeo de duplicados en bloque
+    //Una sola consulta por página en vez de un existsBy... por cada
+    //registro descargado (evita N+1 contra la BD durante el respaldo inicial).
     @Query("SELECT l.fechaLectura FROM BeanLectura l WHERE l.fechaLectura BETWEEN :inicio AND :fin")
     List<LocalDateTime> findFechasByFechaLecturaBetween(
             @Param("inicio") LocalDateTime inicio,
             @Param("fin")    LocalDateTime fin);
 
-    // ── Módulo 5 — Gráficas: datos históricos paginados ───────
-    // Canvas de Chart.js puede manejar 10k+ puntos, pero la API
-    // expone paginación para que el frontend decida cuántos cargar.
+    //Gráficas: datos históricos paginados
+    //Canvas de Chart.js puede manejar 10k+ puntos, pero la API
+    //expone paginación para que el frontend decida cuántos cargar.
     Page<BeanLectura> findByFechaLecturaBetween(
             LocalDateTime inicio,
             LocalDateTime fin,
             Pageable pageable);
 
-    // ── Módulo 6 — Estadísticas climáticas agregadas ──────────
-    // Una sola consulta calcula todos los agregados en la BD
-    // en lugar de traer miles de filas a Java.
-    // Retorna una projection interface definida abajo.
+    //Estadísticas climáticas agregadas ──────────
+    //Una sola consulta calcula todos los agregados en la BD
+    //en lugar de traer miles de filas a Java.
+    //Retorna una projection interface definida abajo.
     @Query("""
             SELECT AVG(l.temperatura) AS promedioTemperatura,
                    MAX(l.temperatura) AS maxTemperatura,
@@ -80,16 +76,12 @@ public interface LecturaRepository extends JpaRepository<BeanLectura, Long> {
             @Param("inicio") LocalDateTime inicio,
             @Param("fin")    LocalDateTime fin);
 
-    // ── Módulo 7 — Reporte: datos para Excel/PDF ──────────────
-    // Sin paginación porque el reporte necesita el rango completo.
-    // El ReportService lo llama solo cuando el usuario tiene permiso.
+    //Reporte: datos para Excel/PDF
+    //Sin paginación porque el reporte necesita el rango completo.
+    //El ReportService lo llama solo cuando el usuario tiene permiso.
     List<BeanLectura> findByFechaLecturaBetween(LocalDateTime inicio, LocalDateTime fin);
 
-    // ── Módulo 6 — Moda por variable ──────────────────────────
-    // MySQL no tiene una función de agregado MODE(); se obtiene con
-    // GROUP BY + COUNT(*) DESC. Se usa nativeQuery porque JPQL no
-    // soporta "ORDER BY COUNT(*)" junto con un GROUP BY simple así.
-    // Empate -> se desempata con el valor más pequeño (determinista).
+    //Moda por variable
     @Query(value = "SELECT temperatura FROM Lectura " +
             "WHERE fechaLectura BETWEEN :inicio AND :fin AND temperatura IS NOT NULL " +
             "GROUP BY temperatura ORDER BY COUNT(*) DESC, temperatura ASC LIMIT 1", nativeQuery = true)
@@ -115,11 +107,6 @@ public interface LecturaRepository extends JpaRepository<BeanLectura, Long> {
             "GROUP BY presion ORDER BY COUNT(*) DESC, presion ASC LIMIT 1", nativeQuery = true)
     Optional<Float> modaPresion(@Param("inicio") LocalDateTime inicio, @Param("fin") LocalDateTime fin);
 
-    // ─────────────────────────────────────────────────────────
-    // Projection interface — Módulo 6
-    // Los alias del SELECT de calcularEstadisticas mapean 1-a-1
-    // con los nombres de getter (sin "get", camelCase).
-    // ─────────────────────────────────────────────────────────
     interface EstadisticasClimaticas {
         Double getPromedioTemperatura();
         Double getMaxTemperatura();

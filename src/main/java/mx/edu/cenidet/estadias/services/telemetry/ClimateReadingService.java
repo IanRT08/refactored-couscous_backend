@@ -17,14 +17,13 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
-// Módulos 4 y 5 — Acceso de lectura a datos climáticos almacenados.
 @Service
 @RequiredArgsConstructor
 public class ClimateReadingService {
 
     private final LecturaRepository lecturaRepository;
 
-    // ── Módulo 4 — Última lectura para el Dashboard ───────────
+    //Última lectura para el Dashboard
     @Transactional(readOnly = true)
     public ClimateReadingDTO obtenerUltima() {
         return lecturaRepository.findTopByOrderByFechaLecturaDesc()
@@ -33,7 +32,7 @@ public class ClimateReadingService {
                         "No hay lecturas climáticas registradas aún."));
     }
 
-    // ── Módulo 5 — Histórico paginado para gráficas ──────────
+    //Histórico paginado para gráficas
     @Transactional(readOnly = true)
     public PageResponseDTO<ClimateReadingDTO> obtenerPorRango(TelemetryFilterDTO filtro) {
         var pageable = PageRequest.of(filtro.getPage(), filtro.getSize(),
@@ -45,13 +44,12 @@ public class ClimateReadingService {
         );
     }
 
-    // ── Módulo 7 — Dataset completo para generación de reporte ─
+    //Dataset completo para generación de reporte
     @Transactional(readOnly = true)
     public List<BeanLectura> obtenerEntidadesPorRango(LocalDateTime inicio, LocalDateTime fin) {
         return lecturaRepository.findByFechaLecturaBetween(inicio, fin);
     }
 
-    // ── Mapper privado ────────────────────────────────────────
     public ClimateReadingDTO mapToDTO(BeanLectura l) {
         return ClimateReadingDTO.builder()
                 .idLectura(l.getIdLectura())

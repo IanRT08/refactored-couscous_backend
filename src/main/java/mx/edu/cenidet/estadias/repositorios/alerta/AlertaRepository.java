@@ -13,14 +13,10 @@ import java.util.List;
 @Repository
 public interface AlertaRepository extends JpaRepository<BeanAlerta, Long> {
 
-    // ── Módulo 8.1 — Alertas para visitantes (sin sesión) ─────
-    // RN: "Los visitantes solo verán alertas muy generales del sistema"
-    // Una alerta con usuario = null es una alerta pública/global.
+    //Alertas para visitantes (sin sesión)
     List<BeanAlerta> findByUsuarioIsNullOrderByFechaCreacionDesc();
 
-    // ── Módulo 8.1 — Alertas para usuario registrado ──────────
-    // Combina sus alertas personales + las alertas generales del sistema
-    // RN: "Los usuarios registrados tendrán alertas más específicas"
+    //Alertas para usuario registrado
     @Query("""
             SELECT a FROM BeanAlerta a
             WHERE a.usuario.idUsuario = :idUsuario
@@ -29,15 +25,14 @@ public interface AlertaRepository extends JpaRepository<BeanAlerta, Long> {
             """)
     Page<BeanAlerta> findAlertasParaUsuario(@Param("idUsuario") Long idUsuario, Pageable pageable);
 
-    // ── Filtro por tipo de alerta ─────────────────────────────
-    // Ej: tipo = "SYNC_ERROR", "SOLICITUD_RESUELTA", "OFFLINE"
+    //Filtro por tipo de alerta
     List<BeanAlerta> findByUsuario_IdUsuarioAndTipoOrderByFechaCreacionDesc(
             Long idUsuario,
             String tipo);
 
-    // ── Limpieza de alertas antiguas (mantenimiento) ──────────
-    // El AlertService puede programar la purga de alertas de sistema
-    // más antiguas de N días para no crecer indefinidamente.
+    //Limpieza de alertas antiguas (mantenimiento)
+    //El AlertService puede programar la purga de alertas de sistema
+    //más antiguas de N días para no crecer indefinidamente.
     void deleteByUsuarioIsNullAndTipo(String tipo);
 }
 

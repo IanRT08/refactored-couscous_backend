@@ -10,18 +10,17 @@ import java.util.Optional;
 @Repository
 public interface PermisoDescargaRepository extends JpaRepository<BeanPermisoDescarga, Long> {
 
-    // ── Módulo 7 — Guardia de acceso a la sección de reportes ─
-    // El ReportController usa esto en cada petición para verificar
-    // que el usuario tiene permiso ACTIVO antes de servir el reporte.
-    // RN: "Solo los usuarios con permiso de descarga pueden ver esta sección"
+    //Guardia de acceso a la sección de reportes ─
+    //El ReportController usa esto en cada petición para verificar
+    //que el usuario tiene permiso ACTIVO antes de servir el reporte.
     boolean existsByUsuario_IdUsuarioAndPermisoDescarga(Long idUsuario, EstadoPermiso permisoDescarga);
 
-    // Recuperar el permiso activo de un usuario (para mostrarlo en su perfil)
+    //Recuperar el permiso activo de un usuario (para mostrarlo en su perfil)
     Optional<BeanPermisoDescarga> findByUsuario_IdUsuarioAndPermisoDescarga(
             Long idUsuario,
             EstadoPermiso permisoDescarga);
 
-    // Buscar por solicitud de origen (usado al aprobar/rechazar desde AdminService)
+    //Buscar por solicitud de origen (usado al aprobar/rechazar desde AdminService)
     Optional<BeanPermisoDescarga> findBySolicitudDescarga_IdSolicitudDescarga(Long idSolicitudDescarga);
 }
 

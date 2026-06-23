@@ -14,36 +14,26 @@ import java.util.Optional;
 @Repository
 public interface SolicitudDescargaRepository extends JpaRepository<BeanSolicitudDescarga, Long> {
 
-    // ── Módulo 7.1 — Restricción: una sola solicitud activa ───
-    // RN: "El usuario solo puede tener una solicitud activa".
-    // RN: "Las solicitudes tienen 7 días para ser aprobadas".
-    //
-    // Uso en el Service:
-    //   boolean tieneActiva = existsByUsuario_IdUsuarioAndEstadoAndFechaSolicitudAfter(
-    //       idUsuario,
-    //       EstadoSolicitud.PENDIENTE,
-    //       LocalDateTime.now().minusDays(7)   ← ventana de 7 días
-    //   );
-    //   if (tieneActiva) → rechazar nueva solicitud
+    //Restricción: una sola solicitud activa
     boolean existsByUsuario_IdUsuarioAndEstadoAndFechaSolicitudAfter(
             Long idUsuario,
             EstadoSolicitud estado,
             LocalDateTime fechaLimite);
 
-    // ── Historial de solicitudes del usuario ───────────────────
+    //Historial de solicitudes del usuario
     List<BeanSolicitudDescarga> findByUsuario_IdUsuarioOrderByFechaSolicitudDesc(Long idUsuario);
 
-    // Solicitud PENDIENTE más reciente (para mostrar estado actual al usuario)
+    //Solicitud PENDIENTE más reciente (para mostrar estado actual al usuario)
     Optional<BeanSolicitudDescarga> findFirstByUsuario_IdUsuarioAndEstadoOrderByFechaSolicitudDesc(
             Long idUsuario,
             EstadoSolicitud estado);
 
-    // ── Módulo 2.5 — Tabla de solicitudes para el Admin ───────
-    // Paginada y filtrables por estado
+    //Tabla de solicitudes para el Admin
+    //Paginada y filtrables por estado
     Page<BeanSolicitudDescarga> findByEstadoOrderByFechaSolicitudDesc(
             EstadoSolicitud estado,
             Pageable pageable);
 
-    // Todas las solicitudes (sin filtro de estado) para el admin
+    //Todas las solicitudes (sin filtro de estado) para el admin
     Page<BeanSolicitudDescarga> findAllByOrderByFechaSolicitudDesc(Pageable pageable);
 }
