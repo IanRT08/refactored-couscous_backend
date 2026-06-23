@@ -100,3 +100,11 @@ gap-recovery:
   # recuperación climática y cada canal eléctrico, para no rebasar los
   # límites de frecuencia de los planes gratuitos.
   delay-ms-entre-paginas: ${GAP_RECOVERY_DELAY_MS:1500}
+
+# Respaldo histórico MANUAL (HistoricalBackfillService / BackfillController):
+# importa meses de datos ya existentes en Ambient Weather / ThingSpeak.
+# Se dispara a propósito desde un endpoint de SUPERADMINISTRADOR, no es
+# automático. Pausa más generosa por defecto porque puede recorrer muchas
+# más páginas que una recuperación de brecha normal.
+respaldo-historico:
+  delay-ms-entre-paginas: ${RESPALDO_HISTORICO_DELAY_MS:2000}

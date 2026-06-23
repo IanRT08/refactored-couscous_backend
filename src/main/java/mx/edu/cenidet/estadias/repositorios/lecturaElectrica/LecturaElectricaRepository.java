@@ -22,6 +22,12 @@ public interface LecturaElectricaRepository extends JpaRepository<BeanLecturaEle
     // ── Módulo 4 — Dashboard / Gap Recovery: última lectura por fuente ──
     Optional<BeanLecturaElectrica> findTopByFuenteOrderByFechaLecturaDesc(FuenteElectrica fuente);
 
+    // ── Respaldo histórico — última lectura ANTES de una fecha dada ──
+    // Necesario para encadenar el cálculo de energía cuando se rellenan
+    // meses antiguos por debajo de datos que ya existen en la tabla.
+    Optional<BeanLecturaElectrica> findTopByFuenteAndFechaLecturaLessThanOrderByFechaLecturaDesc(
+            FuenteElectrica fuente, LocalDateTime fecha);
+
     // ── Gap Recovery — chequeo de duplicados en bloque ────────
     // Una sola consulta por página en vez de un existsBy... por cada
     // registro descargado (evita N+1 contra la BD durante el respaldo inicial).
