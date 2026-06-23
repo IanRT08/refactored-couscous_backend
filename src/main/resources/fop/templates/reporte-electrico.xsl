@@ -42,19 +42,21 @@
           </fo:block>
 
           <fo:table table-layout="fixed" width="100%" border="0.5pt solid #cccccc">
-            <fo:table-column column-width="20%"/>
-            <fo:table-column column-width="20%"/>
-            <fo:table-column column-width="20%"/>
-            <fo:table-column column-width="20%"/>
-            <fo:table-column column-width="20%"/>
+            <fo:table-column column-width="17%"/>
+            <fo:table-column column-width="17%"/>
+            <fo:table-column column-width="17%"/>
+            <fo:table-column column-width="17%"/>
+            <fo:table-column column-width="16%"/>
+            <fo:table-column column-width="16%"/>
 
             <fo:table-header>
               <fo:table-row background-color="#003B8E">
                 <fo:table-cell padding="4pt"><fo:block color="white" font-size="9pt" font-weight="bold">Fecha/Hora</fo:block></fo:table-cell>
-                <fo:table-cell padding="4pt"><fo:block color="white" font-size="9pt" font-weight="bold">Corriente (A)</fo:block></fo:table-cell>
                 <fo:table-cell padding="4pt"><fo:block color="white" font-size="9pt" font-weight="bold">Voltaje (V)</fo:block></fo:table-cell>
+                <fo:table-cell padding="4pt"><fo:block color="white" font-size="9pt" font-weight="bold">Corriente (A)</fo:block></fo:table-cell>
                 <fo:table-cell padding="4pt"><fo:block color="white" font-size="9pt" font-weight="bold">Potencia (W)</fo:block></fo:table-cell>
-                <fo:table-cell padding="4pt"><fo:block color="white" font-size="9pt" font-weight="bold">Energía (kWh)</fo:block></fo:table-cell>
+                <fo:table-cell padding="4pt"><fo:block color="white" font-size="9pt" font-weight="bold">Voc (V)</fo:block></fo:table-cell>
+                <fo:table-cell padding="4pt"><fo:block color="white" font-size="9pt" font-weight="bold">Energía (Wh)</fo:block></fo:table-cell>
               </fo:table-row>
             </fo:table-header>
 
@@ -65,9 +67,10 @@
                     <xsl:attribute name="background-color">#f4f6f8</xsl:attribute>
                   </xsl:if>
                   <fo:table-cell padding="3pt"><fo:block font-size="8pt"><xsl:value-of select="@fecha"/></fo:block></fo:table-cell>
-                  <fo:table-cell padding="3pt"><fo:block font-size="8pt"><xsl:value-of select="corriente"/></fo:block></fo:table-cell>
                   <fo:table-cell padding="3pt"><fo:block font-size="8pt"><xsl:value-of select="voltaje"/></fo:block></fo:table-cell>
+                  <fo:table-cell padding="3pt"><fo:block font-size="8pt"><xsl:value-of select="corriente"/></fo:block></fo:table-cell>
                   <fo:table-cell padding="3pt"><fo:block font-size="8pt"><xsl:value-of select="potencia"/></fo:block></fo:table-cell>
+                  <fo:table-cell padding="3pt"><fo:block font-size="8pt"><xsl:value-of select="voc"/></fo:block></fo:table-cell>
                   <fo:table-cell padding="3pt"><fo:block font-size="8pt"><xsl:value-of select="energia"/></fo:block></fo:table-cell>
                 </fo:table-row>
               </xsl:for-each>

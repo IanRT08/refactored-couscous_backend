@@ -1,0 +1,102 @@
+spring:
+  application:
+    name: estadias
+
+  # Base de datos
+  datasource:
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:estadias}?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=America/Mexico_City
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:}
+
+  jpa:
+    hibernate:
+      # "update" es comodo en desarrollo. En producción usar "validate"
+      # y manejar el esquema con migraciones (Flyway/Liquibase).
+      ddl-auto: ${JPA_DDL_AUTO:update}
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          time_zone: America/Mexico_City
+
+  # ──────────────────────────────────────────────────────────
+  # Correo (Jakarta Mail / spring-boot-starter-mail)
+  # Requerido por TokenService, MailService (recuperación de
+  # contraseña, confirmación de cuenta, notificaciones, etc.)
+  # ──────────────────────────────────────────────────────────
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+server:
+  port: ${SERVER_PORT:8085}
+
+# ────────────────────────────────────────────────────────────
+# JWT (JwtService)
+# ────────────────────────────────────────────────────────────
+jwt:
+  # OBLIGATORIO. Clave secreta codificada en Base64, mínimo 256 bits.
+  # Generar una con, por ejemplo:
+  #   openssl rand -base64 32
+  # NUNCA subir el valor real a git: definirla como variable de entorno JWT_SECRET.
+  secret: ${JWT_SECRET:}
+  expiration-ms: ${JWT_EXPIRATION_MS:86400000}   # 24 h
+
+
+# Integraciones externas — AW-SHEF
+
+awshef:
+  ambientweather:
+    # https://ambientweather.net/account -> API Keys
+    api-key: ${AMBIENT_API_KEY:}
+    application-key: ${AMBIENT_APPLICATION_KEY:}
+    # MAC address del dispositivo de la estación del CENIDET
+    mac-address: ${AMBIENT_MAC_ADDRESS:}
+    base-url: https://api.ambientweather.net/v1
+
+  thingspeak:
+    # Dos canales separados (ambos privados): Fotovoltaico y Eólico.
+    # Cada canal de ThingSpeak tiene su propio ID y su propio Read API Key.
+    base-url: https://api.thingspeak.com
+    fotovoltaico:
+      channel-id: ${THINGSPEAK_FV_CHANNEL_ID:}
+      read-api-key: ${THINGSPEAK_FV_READ_API_KEY:}
+    eolico:
+      channel-id: ${THINGSPEAK_EOLICO_CHANNEL_ID:}
+      read-api-key: ${THINGSPEAK_EOLICO_READ_API_KEY:}
+
+  http-client:
+    connect-timeout-seconds: 10
+    read-timeout-seconds: 15
+
+  mail:
+    remitente: ${MAIL_FROM:20243ds030@utez.edu.mx}
+
+# Intervalos de sincronización con las APIs externas (ms)
+# Ajustar según los límites de las cuentas gratuitas de cada API.
+
+sync:
+  ambientweather:
+    interval-ms: 60000   # 1 min
+  thingspeak:
+    interval-ms: 30000   # 30 s
+
+# Recuperación de brechas (GapRecoveryService): al arrancar o reconectar.
+gap-recovery:
+  # Si nunca hay un registro previo (primer arranque), cuántas horas hacia
+  # atrás se intenta respaldar. Bájalo (p.ej. 6) si te preocupa la primera
+  # corrida; el límite real de páginas sigue acotado por los MAX_PAGINAS_* del código.
+  horas-inicial: ${GAP_RECOVERY_HORAS_INICIAL:24}
+  # Pausa (ms) entre páginas/llamadas paginadas a la misma API, y entre la
+  # recuperación climática y cada canal eléctrico, para no rebasar los
+  # límites de frecuencia de los planes gratuitos.
+  delay-ms-entre-paginas: ${GAP_RECOVERY_DELAY_MS:1500}

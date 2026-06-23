@@ -7,7 +7,9 @@ import mx.edu.cenidet.estadias.config.ThingSpeakClient;
 import mx.edu.cenidet.estadias.dtos.client.ThingSpeakFeedDTO;
 import mx.edu.cenidet.estadias.mappers.ThingSpeakMapper;
 import mx.edu.cenidet.estadias.modelos.lecturaElectrica.BeanLecturaElectrica;
+import mx.edu.cenidet.estadias.modelos.lecturaElectrica.FuenteElectrica;
 import mx.edu.cenidet.estadias.repositorios.lecturaElectrica.LecturaElectricaRepository;
+import mx.edu.cenidet.estadias.util.EnergiaCalculator;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,27 +25,39 @@ public class ThingSpeakSyncService {
     private final SyncHealthService          syncHealthService;
 
     // application.yml: sync.thingspeak.interval-ms: 30000
+    // Los dos canales (Fotovoltaico, Eólico) se sincronizan en la misma
+    // pasada; un fallo en uno no debe impedir que el otro se guarde.
     @Scheduled(fixedDelayString = "${sync.thingspeak.interval-ms:30000}")
-    @Transactional
     public void sincronizar() {
+        for (FuenteElectrica fuente : FuenteElectrica.values()) {
+            sincronizarFuente(fuente);
+        }
+    }
+
+    @Transactional
+    public void sincronizarFuente(FuenteElectrica fuente) {
         try {
             //Obtener el último feed del canal
-            ThingSpeakFeedDTO.Feed feed = thingSpeakClient.obtenerUltimoFeed();
+            ThingSpeakFeedDTO.Feed feed = thingSpeakClient.obtenerUltimoFeed(fuente);
 
             //Mapear a entidad
-            BeanLecturaElectrica lectura = thingSpeakMapper.toEntity(feed);
+            BeanLecturaElectrica lectura = thingSpeakMapper.toEntity(feed, fuente);
 
-            //Idempotencia
-            if (electricaRepository.existsByFechaLectura(lectura.getFechaLectura())) {
-                log.debug("[SYNC-TS] Lectura {} ya existe. Omitiendo.",
-                        lectura.getFechaLectura());
+            //Idempotencia (por fuente)
+            if (electricaRepository.existsByFechaLecturaAndFuente(lectura.getFechaLectura(), fuente)) {
+                log.debug("[SYNC-TS] Lectura {} ({}) ya existe. Omitiendo.",
+                        lectura.getFechaLectura(), fuente);
                 syncHealthService.marcarExito(SyncHealthService.FUENTE_THINGSPEAK);
                 return;
             }
 
+            //Energía = potencia integrada desde la lectura anterior de la misma fuente
+            electricaRepository.findTopByFuenteOrderByFechaLecturaDesc(fuente)
+                    .ifPresent(anterior -> lectura.setEnergia(EnergiaCalculator.calcularIncremento(anterior, lectura)));
+
             //Persistir
             electricaRepository.save(lectura);
-            log.info("[SYNC-TS] Lectura eléctrica guardada: {}", lectura.getFechaLectura());
+            log.info("[SYNC-TS] Lectura eléctrica guardada ({}): {}", fuente, lectura.getFechaLectura());
             syncHealthService.marcarExito(SyncHealthService.FUENTE_THINGSPEAK);
 
         } catch (Exception ex) {

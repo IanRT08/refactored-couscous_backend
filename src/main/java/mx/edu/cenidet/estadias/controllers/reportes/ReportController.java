@@ -8,6 +8,7 @@ import mx.edu.cenidet.estadias.dtos.reportes.TipoReporte;
 import mx.edu.cenidet.estadias.excepciones.BusinessRuleException;
 import mx.edu.cenidet.estadias.modelos.lectura.BeanLectura;
 import mx.edu.cenidet.estadias.modelos.lecturaElectrica.BeanLecturaElectrica;
+import mx.edu.cenidet.estadias.modelos.lecturaElectrica.FuenteElectrica;
 import mx.edu.cenidet.estadias.services.downloadrequest.DownloadRequestService;
 import mx.edu.cenidet.estadias.services.report.ExcelReportService;
 import mx.edu.cenidet.estadias.services.report.PdfReportService;
@@ -45,12 +46,19 @@ public class ReportController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fin,
             @RequestParam TipoReporte tipo,
             @RequestParam FormatoReporte formato,
+            @RequestParam(required = false) FuenteElectrica fuente,
             HttpServletRequest request) {
 
         //Rango de fechas válido
         if (!inicio.isBefore(fin)) {
             throw new BusinessRuleException(
                     "La fecha de inicio debe ser anterior a la fecha de fin.");
+        }
+
+        //Para reportes eléctricos hay que indicar de qué canal (no se reporta combinado)
+        if (TipoReporte.ELECTRICO.equals(tipo) && fuente == null) {
+            throw new BusinessRuleException(
+                    "Debes indicar la fuente (FOTOVOLTAICO o EOLICO) para el reporte eléctrico.");
         }
 
         // ── Guardia 2: permiso de descarga ACTIVO ────────────
@@ -62,7 +70,7 @@ public class ReportController {
         }
 
         //DTO de filtro
-        ReportFilterDTO filtro = new ReportFilterDTO(inicio, fin, tipo, formato);
+        ReportFilterDTO filtro = new ReportFilterDTO(inicio, fin, tipo, formato, fuente);
 
         //Obtener datos y generar reporte
         byte[] reporte = generarReporte(filtro);
@@ -73,7 +81,8 @@ public class ReportController {
                 : "application/pdf";
 
         String extension = FormatoReporte.XLSX.equals(formato) ? "xlsx" : "pdf";
-        String filename  = "reporte-" + tipo.name().toLowerCase()
+        String sufijoFuente = fuente != null ? "-" + fuente.name().toLowerCase() : "";
+        String filename  = "reporte-" + tipo.name().toLowerCase() + sufijoFuente
                 + "-" + LocalDate.now() + "." + extension;
 
         return ResponseEntity.ok()
@@ -93,7 +102,7 @@ public class ReportController {
                     : pdfReportService.generarReporteClimatico(datos, filtro);
         } else {
             List<BeanLecturaElectrica> datos = electricReadingService
-                    .obtenerEntidadesPorRango(filtro.getInicio(), filtro.getFin());
+                    .obtenerEntidadesPorRango(filtro.getInicio(), filtro.getFin(), filtro.getFuente());
             return FormatoReporte.XLSX.equals(filtro.getFormato())
                     ? excelReportService.generarReporteElectrico(datos, filtro)
                     : pdfReportService.generarReporteElectrico(datos, filtro);

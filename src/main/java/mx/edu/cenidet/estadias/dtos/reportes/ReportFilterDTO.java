@@ -7,6 +7,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import mx.edu.cenidet.estadias.modelos.lecturaElectrica.FuenteElectrica;
 
 import java.time.LocalDateTime;
 
@@ -26,6 +27,10 @@ public class ReportFilterDTO {
 
     @NotNull(message = "El formato es obligatorio")
     private FormatoReporte formato;
+
+    //Obligatorio solo cuando tipo = ELECTRICO (validado en el controller,
+    //ya que no aplica para reportes CLIMATICO)
+    private FuenteElectrica fuente;
 
     @AssertTrue(message = "La fecha de inicio debe ser anterior a la fecha fin")
     @JsonIgnore

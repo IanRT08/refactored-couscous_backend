@@ -38,14 +38,16 @@ public class ReportDataAssembler {
         xml.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
         xml.append("<reporte tipo=\"ELECTRICO\">\n");
         xml.append("  <periodo inicio=\"").append(filtro.getInicio())
-                .append("\" fin=\"").append(filtro.getFin()).append("\"/>\n");
+                .append("\" fin=\"").append(filtro.getFin())
+                .append("\" fuente=\"").append(filtro.getFuente()).append("\"/>\n");
         xml.append("  <lecturas>\n");
 
         for (BeanLecturaElectrica l : datos) {
             xml.append("    <lectura fecha=\"").append(l.getFechaLectura()).append("\">\n");
-            xml.append("      <corriente>").append(fmt(l.getCorriente())).append("</corriente>\n");
             xml.append("      <voltaje>").append(fmt(l.getVoltaje())).append("</voltaje>\n");
+            xml.append("      <corriente>").append(fmt(l.getCorriente())).append("</corriente>\n");
             xml.append("      <potencia>").append(fmt(l.getPotencia())).append("</potencia>\n");
+            xml.append("      <voc>").append(fmt(l.getVoc())).append("</voc>\n");
             xml.append("      <energia>").append(fmt(l.getEnergia())).append("</energia>\n");
             xml.append("    </lectura>\n");
         }

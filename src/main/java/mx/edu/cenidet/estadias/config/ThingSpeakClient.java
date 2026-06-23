@@ -3,6 +3,7 @@ package mx.edu.cenidet.estadias.config;
 import lombok.extern.slf4j.Slf4j;
 import mx.edu.cenidet.estadias.dtos.client.ThingSpeakFeedDTO;
 import mx.edu.cenidet.estadias.excepciones.ExternalApiException;
+import mx.edu.cenidet.estadias.modelos.lecturaElectrica.FuenteElectrica;
 import mx.edu.cenidet.estadias.services.sync.SyncHealthService;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,7 +16,9 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 
 @Component
 @Slf4j
@@ -26,30 +29,33 @@ public class ThingSpeakClient {
 
     private static final ZoneId ZONA_CENIDET = ZoneId.of("America/Mexico_City");
 
-    private final RestClient restClient;
-
-    @Value("${awshef.thingspeak.read-api-key}")
-    private String readApiKey;
-
-    @Value("${awshef.thingspeak.channel-id}")
-    private String channelId;
-
-    public ThingSpeakClient(
-            @Qualifier("thingSpeakRestClient") RestClient restClient) {
-        this.restClient = restClient;
+    private record CanalConfig(String channelId, String readApiKey) {
     }
 
-    //Último feed disponible
-    public ThingSpeakFeedDTO.Feed obtenerUltimoFeed() {
-        try {
-            String channelIdValue = channelId;
+    private final RestClient restClient;
+    private final Map<FuenteElectrica, CanalConfig> canales = new EnumMap<>(FuenteElectrica.class);
 
+    public ThingSpeakClient(
+            @Qualifier("thingSpeakRestClient") RestClient restClient,
+            @Value("${awshef.thingspeak.fotovoltaico.channel-id}") String channelIdFotovoltaico,
+            @Value("${awshef.thingspeak.fotovoltaico.read-api-key}") String readApiKeyFotovoltaico,
+            @Value("${awshef.thingspeak.eolico.channel-id}") String channelIdEolico,
+            @Value("${awshef.thingspeak.eolico.read-api-key}") String readApiKeyEolico) {
+        this.restClient = restClient;
+        canales.put(FuenteElectrica.FOTOVOLTAICO, new CanalConfig(channelIdFotovoltaico, readApiKeyFotovoltaico));
+        canales.put(FuenteElectrica.EOLICO, new CanalConfig(channelIdEolico, readApiKeyEolico));
+    }
+
+    //Último feed disponible de un canal
+    public ThingSpeakFeedDTO.Feed obtenerUltimoFeed(FuenteElectrica fuente) {
+        CanalConfig canal = canales.get(fuente);
+        try {
             ThingSpeakFeedDTO respuesta = restClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/channels/{id}/feeds.json")
-                            .queryParam("api_key", readApiKey)
+                            .queryParam("api_key", canal.readApiKey())
                             .queryParam("results", 1)
-                            .build(channelIdValue))
+                            .build(canal.channelId()))
                     .retrieve()
                     .body(ThingSpeakFeedDTO.class);
 
@@ -57,24 +63,25 @@ public class ThingSpeakClient {
                     || respuesta.getFeeds() == null
                     || respuesta.getFeeds().isEmpty()) {
                 throw new ExternalApiException(SyncHealthService.FUENTE_THINGSPEAK,
-                        "ThingSpeak no devolvió feeds para el canal " + channelId);
+                        "ThingSpeak no devolvió feeds para el canal " + fuente + " (" + canal.channelId() + ")");
             }
 
             ThingSpeakFeedDTO.Feed feed = respuesta.getFeeds()
                     .get(respuesta.getFeeds().size() - 1);
 
-            log.debug("[TS-CLIENT] Feed obtenido: {}", feed.getCreatedAt());
+            log.debug("[TS-CLIENT] Feed obtenido ({}): {}", fuente, feed.getCreatedAt());
             return feed;
 
         } catch (RestClientException ex) {
             throw new ExternalApiException(SyncHealthService.FUENTE_THINGSPEAK,
-                    "Error HTTP al consultar ThingSpeak: " + ex.getMessage(), ex);
+                    "Error HTTP al consultar ThingSpeak (" + fuente + "): " + ex.getMessage(), ex);
         }
     }
 
-    //Feeds por rango de fechas
+    //Feeds por rango de fechas de un canal
     public List<ThingSpeakFeedDTO.Feed> obtenerFeedsPorRango(
-            LocalDateTime desde, LocalDateTime hasta) {
+            FuenteElectrica fuente, LocalDateTime desde, LocalDateTime hasta) {
+        CanalConfig canal = canales.get(fuente);
         try {
             String startUTC = desde
                     .atZone(ZONA_CENIDET)
@@ -84,26 +91,25 @@ public class ThingSpeakClient {
                     .atZone(ZONA_CENIDET)
                     .withZoneSameInstant(ZoneId.of("UTC"))
                     .format(TS_DATE_FORMAT);
-            String channelIdValue = channelId;
             ThingSpeakFeedDTO respuesta = restClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/channels/{id}/feeds.json")
-                            .queryParam("api_key", readApiKey)
+                            .queryParam("api_key", canal.readApiKey())
                             .queryParam("start", startUTC)
                             .queryParam("end", endUTC)
-                            .build(channelIdValue))
+                            .build(canal.channelId()))
                     .retrieve()
                     .body(ThingSpeakFeedDTO.class);
             if (respuesta == null || respuesta.getFeeds() == null) {
-                log.info("[TS-CLIENT] Sin feeds para rango {} → {}", desde, hasta);
+                log.info("[TS-CLIENT] Sin feeds ({}) para rango {} → {}", fuente, desde, hasta);
                 return Collections.emptyList();
             }
-            log.info("[TS-CLIENT] Histórico recibido: {} feeds para rango {} → {}",
-                    respuesta.getFeeds().size(), desde, hasta);
+            log.info("[TS-CLIENT] Histórico recibido ({}): {} feeds para rango {} → {}",
+                    fuente, respuesta.getFeeds().size(), desde, hasta);
             return respuesta.getFeeds();
         } catch (RestClientException ex) {
             throw new ExternalApiException(SyncHealthService.FUENTE_THINGSPEAK,
-                    "Error HTTP al consultar histórico de ThingSpeak: " + ex.getMessage(), ex);
+                    "Error HTTP al consultar histórico de ThingSpeak (" + fuente + "): " + ex.getMessage(), ex);
         }
     }
 

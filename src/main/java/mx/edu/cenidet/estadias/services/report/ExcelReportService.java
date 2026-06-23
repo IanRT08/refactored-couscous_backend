@@ -72,22 +72,23 @@ public class ExcelReportService {
         try (Workbook wb = new XSSFWorkbook();
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 
-            Sheet hoja = wb.createSheet("Datos Eléctricos");
+            Sheet hoja = wb.createSheet("Datos Eléctricos - " + filtro.getFuente());
             CellStyle estiloEncabezado = crearEstiloEncabezado(wb);
             CellStyle estiloResumen    = crearEstiloResumen(wb);
 
-            String[] cols = {"Fecha/Hora", "Corriente (A)", "Voltaje (V)",
-                    "Potencia (W)", "Energía (kWh)"};
+            String[] cols = {"Fecha/Hora", "Voltaje (V)", "Corriente (A)",
+                    "Potencia (W)", "Voc (V)", "Energía (Wh)"};
             crearFila(hoja, 0, cols, estiloEncabezado);
 
             int fila = 1;
             for (BeanLecturaElectrica l : datos) {
                 Row row = hoja.createRow(fila++);
                 row.createCell(0).setCellValue(l.getFechaLectura().toString());
-                setCeldaFloat(row, 1, l.getCorriente());
-                setCeldaFloat(row, 2, l.getVoltaje());
+                setCeldaFloat(row, 1, l.getVoltaje());
+                setCeldaFloat(row, 2, l.getCorriente());
                 setCeldaFloat(row, 3, l.getPotencia());
-                setCeldaFloat(row, 4, l.getEnergia());
+                setCeldaFloat(row, 4, l.getVoc());
+                setCeldaFloat(row, 5, l.getEnergia());
             }
 
             int ultimaFila = fila;

@@ -7,6 +7,7 @@ import mx.edu.cenidet.estadias.dtos.telemetria.ElectricReadingDTO;
 import mx.edu.cenidet.estadias.dtos.telemetria.TelemetryFilterDTO;
 import mx.edu.cenidet.estadias.excepciones.ResourceNotFoundException;
 import mx.edu.cenidet.estadias.modelos.lecturaElectrica.BeanLecturaElectrica;
+import mx.edu.cenidet.estadias.modelos.lecturaElectrica.FuenteElectrica;
 import mx.edu.cenidet.estadias.repositorios.lecturaElectrica.LecturaElectricaRepository;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -16,47 +17,51 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 
-//Acceso de lectura a datos eléctricos almacenados.
+//Acceso de lectura a datos eléctricos almacenados. Todo se consulta por
+//fuente (FOTOVOLTAICO / EOLICO) porque son dos canales con variables distintas.
 @Service
 @RequiredArgsConstructor
 public class ElectricReadingService {
 
     private final LecturaElectricaRepository electricaRepository;
 
-    //Última lectura para el Dashboard
+    //Última lectura de una fuente para el Dashboard
     @Transactional(readOnly = true)
-    public ElectricReadingDTO obtenerUltima() {
-        return electricaRepository.findTopByOrderByFechaLecturaDesc()
+    public ElectricReadingDTO obtenerUltima(FuenteElectrica fuente) {
+        return electricaRepository.findTopByFuenteOrderByFechaLecturaDesc(fuente)
                 .map(this::mapToDTO)
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "No hay lecturas eléctricas registradas aún."));
+                        "No hay lecturas eléctricas registradas aún para " + fuente + "."));
     }
 
-    //Histórico paginado para gráficas
+    //Histórico paginado para gráficas, de una fuente
     @Transactional(readOnly = true)
-    public PageResponseDTO<ElectricReadingDTO> obtenerPorRango(TelemetryFilterDTO filtro) {
+    public PageResponseDTO<ElectricReadingDTO> obtenerPorRango(TelemetryFilterDTO filtro, FuenteElectrica fuente) {
         var pageable = PageRequest.of(filtro.getPage(), filtro.getSize(),
                 Sort.by("fechaLectura").ascending());
         return PageResponseDTO.of(
-                electricaRepository.findByFechaLecturaBetween(
-                                filtro.getInicio(), filtro.getFin(), pageable)
+                electricaRepository.findByFuenteAndFechaLecturaBetween(
+                                fuente, filtro.getInicio(), filtro.getFin(), pageable)
                         .map(this::mapToDTO)
         );
     }
 
-    //Dataset completo para generación de reporte
+    //Dataset completo para generación de reporte, de una fuente
     @Transactional(readOnly = true)
-    public List<BeanLecturaElectrica> obtenerEntidadesPorRango(LocalDateTime inicio, LocalDateTime fin) {
-        return electricaRepository.findByFechaLecturaBetween(inicio, fin);
+    public List<BeanLecturaElectrica> obtenerEntidadesPorRango(
+            LocalDateTime inicio, LocalDateTime fin, FuenteElectrica fuente) {
+        return electricaRepository.findByFuenteAndFechaLecturaBetweenOrderByFechaLecturaAsc(fuente, inicio, fin);
     }
 
     public ElectricReadingDTO mapToDTO(BeanLecturaElectrica l) {
         return ElectricReadingDTO.builder()
                 .idLecturaElectrica(l.getIdLecturaElectrica())
                 .fechaLectura(l.getFechaLectura())
-                .corriente(l.getCorriente())
+                .fuente(l.getFuente())
                 .voltaje(l.getVoltaje())
+                .corriente(l.getCorriente())
                 .potencia(l.getPotencia())
+                .voc(l.getVoc())
                 .energia(l.getEnergia())
                 .build();
     }

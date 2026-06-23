@@ -9,6 +9,7 @@ import mx.edu.cenidet.estadias.dtos.telemetria.LatestSummaryDTO;
 import mx.edu.cenidet.estadias.dtos.telemetria.TelemetryFilterDTO;
 import mx.edu.cenidet.estadias.excepciones.BusinessRuleException;
 import mx.edu.cenidet.estadias.excepciones.ResourceNotFoundException;
+import mx.edu.cenidet.estadias.modelos.lecturaElectrica.FuenteElectrica;
 import mx.edu.cenidet.estadias.services.sync.SyncHealthService;
 import mx.edu.cenidet.estadias.services.telemetry.ClimateReadingService;
 import mx.edu.cenidet.estadias.services.telemetry.ElectricReadingService;
@@ -42,16 +43,24 @@ public class TelemetryController {
             // Sin lecturas climáticas todavía; se deja null y se informa con datosEnTiempoReal.
         }
 
-        ElectricReadingDTO electrica = null;
+        ElectricReadingDTO fotovoltaica = null;
         try {
-            electrica = electricReadingService.obtenerUltima();
+            fotovoltaica = electricReadingService.obtenerUltima(FuenteElectrica.FOTOVOLTAICO);
         } catch (ResourceNotFoundException ignored) {
-            // Sin lecturas eléctricas todavía; se deja null y se informa con datosEnTiempoReal.
+            // Sin lecturas de este canal todavía; se deja null y se informa con datosEnTiempoReal.
+        }
+
+        ElectricReadingDTO eolica = null;
+        try {
+            eolica = electricReadingService.obtenerUltima(FuenteElectrica.EOLICO);
+        } catch (ResourceNotFoundException ignored) {
+            // Sin lecturas de este canal todavía; se deja null y se informa con datosEnTiempoReal.
         }
 
         LatestSummaryDTO resumen = LatestSummaryDTO.builder()
                 .ultimaLecturaClimatica(climatica)
-                .ultimaLecturaElectrica(electrica)
+                .ultimaLecturaFotovoltaica(fotovoltaica)
+                .ultimaLecturaEolica(eolica)
                 .datosEnTiempoReal(
                         !syncHealthService.estaEnError(SyncHealthService.FUENTE_AMBIENT)
                                 && !syncHealthService.estaEnError(SyncHealthService.FUENTE_THINGSPEAK))
@@ -78,12 +87,13 @@ public class TelemetryController {
                         climateReadingService.obtenerPorRango(filtro)));
     }
 
-    //Histórico eléctrico paginado para gráficas.
+    //Histórico eléctrico paginado para gráficas, de un canal (Fotovoltaico o Eólico).
     @GetMapping("/electrica")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponseDTO<PageResponseDTO<ElectricReadingDTO>>> obtenerElectrica(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime inicio,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fin,
+            @RequestParam FuenteElectrica fuente,
             @RequestParam(defaultValue = "0")   int page,
             @RequestParam(defaultValue = "500") int size) {
 
@@ -92,7 +102,7 @@ public class TelemetryController {
 
         return ResponseEntity.ok(
                 ApiResponseDTO.ok("Datos eléctricos obtenidos.",
-                        electricReadingService.obtenerPorRango(filtro)));
+                        electricReadingService.obtenerPorRango(filtro, fuente)));
     }
 
     private void validarRango(LocalDateTime inicio, LocalDateTime fin) {

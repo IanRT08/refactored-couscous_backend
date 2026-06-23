@@ -9,7 +9,8 @@ import java.time.LocalDateTime;
 public class LatestSummaryDTO {
 
     private ClimateReadingDTO ultimaLecturaClimatica;
-    private ElectricReadingDTO ultimaLecturaElectrica;
+    private ElectricReadingDTO ultimaLecturaFotovoltaica;
+    private ElectricReadingDTO ultimaLecturaEolica;
 
     //True significa que tiene los datos sincronizados y hay conexión a internet
     //False significa que opera con los ultimos datos guardados (modo offline)

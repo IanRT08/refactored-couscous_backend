@@ -37,6 +37,14 @@ public interface LecturaRepository extends JpaRepository<BeanLectura, Long> {
             LocalDateTime inicio,
             LocalDateTime fin);
 
+    // ── Gap Recovery — chequeo de duplicados en bloque ────────
+    // Una sola consulta por página en vez de un existsBy... por cada
+    // registro descargado (evita N+1 contra la BD durante el respaldo inicial).
+    @Query("SELECT l.fechaLectura FROM BeanLectura l WHERE l.fechaLectura BETWEEN :inicio AND :fin")
+    List<LocalDateTime> findFechasByFechaLecturaBetween(
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fin")    LocalDateTime fin);
+
     // ── Módulo 5 — Gráficas: datos históricos paginados ───────
     // Canvas de Chart.js puede manejar 10k+ puntos, pero la API
     // expone paginación para que el frontend decida cuántos cargar.

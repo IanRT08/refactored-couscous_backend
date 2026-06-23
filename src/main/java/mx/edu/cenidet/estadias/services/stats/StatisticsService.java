@@ -2,9 +2,11 @@ package mx.edu.cenidet.estadias.services.stats;
 
 import lombok.RequiredArgsConstructor;
 import mx.edu.cenidet.estadias.dtos.estadisticas.ClimateStatisticsDTO;
+import mx.edu.cenidet.estadias.dtos.estadisticas.ElectricCombinedStatisticsDTO;
 import mx.edu.cenidet.estadias.dtos.estadisticas.ElectricStatisticsDTO;
 import mx.edu.cenidet.estadias.dtos.estadisticas.StatsFilterDTO;
 import mx.edu.cenidet.estadias.excepciones.BusinessRuleException;
+import mx.edu.cenidet.estadias.modelos.lecturaElectrica.FuenteElectrica;
 import mx.edu.cenidet.estadias.repositorios.lectura.LecturaRepository;
 import mx.edu.cenidet.estadias.repositorios.lecturaElectrica.LecturaElectricaRepository;
 import org.springframework.stereotype.Service;
@@ -55,35 +57,73 @@ public class StatisticsService {
                 .build();
     }
 
-    //Estadísticas eléctricas
+    //Estadísticas eléctricas de una fuente (Fotovoltaico o Eólico)
     @Transactional(readOnly = true)
-    public ElectricStatisticsDTO calcularElectricas(StatsFilterDTO filtro) {
-        LecturaElectricaRepository.EstadisticasElectricas stats =
-                electricaRepository.calcularEstadisticas(filtro.getInicio(), filtro.getFin())
-                        .filter(s -> s.getPromedioCorriente() != null)
-                        .orElseThrow(() -> new BusinessRuleException(
-                                "No hay datos para este periodo."));
+    public ElectricStatisticsDTO calcularElectricas(StatsFilterDTO filtro, FuenteElectrica fuente) {
+        return calcularElectricasInterno(filtro, fuente)
+                .orElseThrow(() -> new BusinessRuleException(
+                        "No hay datos para este periodo (" + fuente + ")."));
+    }
 
-        return ElectricStatisticsDTO.builder()
+    //Estadísticas combinadas del sistema híbrido. Solo potencia (promedio) y
+    //energía (total) son sumables entre los dos canales; voltaje/corriente/Voc
+    //se reportan únicamente desglosados por fuente (ver ElectricCombinedStatisticsDTO).
+    @Transactional(readOnly = true)
+    public ElectricCombinedStatisticsDTO calcularElectricasCombinadas(StatsFilterDTO filtro) {
+        Optional<ElectricStatisticsDTO> fotovoltaico = calcularElectricasInterno(filtro, FuenteElectrica.FOTOVOLTAICO);
+        Optional<ElectricStatisticsDTO> eolico = calcularElectricasInterno(filtro, FuenteElectrica.EOLICO);
+
+        if (fotovoltaico.isEmpty() && eolico.isEmpty()) {
+            throw new BusinessRuleException("No hay datos para este periodo.");
+        }
+
+        double potenciaCombinada = fotovoltaico.map(ElectricStatisticsDTO::getPromedioPotencia).orElse(0.0)
+                + eolico.map(ElectricStatisticsDTO::getPromedioPotencia).orElse(0.0);
+        double energiaCombinada = fotovoltaico.map(ElectricStatisticsDTO::getEnergiaTotalPeriodo).orElse(0.0)
+                + eolico.map(ElectricStatisticsDTO::getEnergiaTotalPeriodo).orElse(0.0);
+
+        return ElectricCombinedStatisticsDTO.builder()
                 .inicio(filtro.getInicio())
                 .fin(filtro.getFin())
-                .promedioCorriente(stats.getPromedioCorriente())
-                .maxCorriente(stats.getMaxCorriente())
-                .minCorriente(stats.getMinCorriente())
-                .modaCorriente(aDouble(electricaRepository.modaCorriente(filtro.getInicio(), filtro.getFin())))
-                .promedioVoltaje(stats.getPromedioVoltaje())
-                .maxVoltaje(stats.getMaxVoltaje())
-                .minVoltaje(stats.getMinVoltaje())
-                .modaVoltaje(aDouble(electricaRepository.modaVoltaje(filtro.getInicio(), filtro.getFin())))
-                .promedioPotencia(stats.getPromedioPotencia())
-                .maxPotencia(stats.getMaxPotencia())
-                .minPotencia(stats.getMinPotencia())
-                .modaPotencia(aDouble(electricaRepository.modaPotencia(filtro.getInicio(), filtro.getFin())))
-                .promedioEnergia(stats.getPromedioEnergia())
-                .maxEnergia(stats.getMaxEnergia())
-                .minEnergia(stats.getMinEnergia())
-                .modaEnergia(aDouble(electricaRepository.modaEnergia(filtro.getInicio(), filtro.getFin())))
+                .potenciaPromedioCombinada(potenciaCombinada)
+                .energiaTotalCombinada(energiaCombinada)
+                .fotovoltaico(fotovoltaico.orElse(null))
+                .eolico(eolico.orElse(null))
                 .build();
+    }
+
+    private Optional<ElectricStatisticsDTO> calcularElectricasInterno(StatsFilterDTO filtro, FuenteElectrica fuente) {
+        return electricaRepository.calcularEstadisticas(fuente, filtro.getInicio(), filtro.getFin())
+                .filter(s -> s.getPromedioPotencia() != null)
+                .map(stats -> {
+                    String nombreFuente = fuente.name();
+                    return ElectricStatisticsDTO.builder()
+                            .inicio(filtro.getInicio())
+                            .fin(filtro.getFin())
+                            .fuente(fuente)
+                            .promedioVoltaje(stats.getPromedioVoltaje())
+                            .maxVoltaje(stats.getMaxVoltaje())
+                            .minVoltaje(stats.getMinVoltaje())
+                            .modaVoltaje(aDouble(electricaRepository.modaVoltaje(nombreFuente, filtro.getInicio(), filtro.getFin())))
+                            .promedioCorriente(stats.getPromedioCorriente())
+                            .maxCorriente(stats.getMaxCorriente())
+                            .minCorriente(stats.getMinCorriente())
+                            .modaCorriente(aDouble(electricaRepository.modaCorriente(nombreFuente, filtro.getInicio(), filtro.getFin())))
+                            .promedioPotencia(stats.getPromedioPotencia())
+                            .maxPotencia(stats.getMaxPotencia())
+                            .minPotencia(stats.getMinPotencia())
+                            .modaPotencia(aDouble(electricaRepository.modaPotencia(nombreFuente, filtro.getInicio(), filtro.getFin())))
+                            .promedioVoc(stats.getPromedioVoc())
+                            .maxVoc(stats.getMaxVoc())
+                            .minVoc(stats.getMinVoc())
+                            .modaVoc(aDouble(electricaRepository.modaVoc(nombreFuente, filtro.getInicio(), filtro.getFin())))
+                            .promedioEnergia(stats.getPromedioEnergia())
+                            .maxEnergia(stats.getMaxEnergia())
+                            .minEnergia(stats.getMinEnergia())
+                            .modaEnergia(aDouble(electricaRepository.modaEnergia(nombreFuente, filtro.getInicio(), filtro.getFin())))
+                            .energiaTotalPeriodo(stats.getEnergiaTotalPeriodo())
+                            .build();
+                });
     }
 
     //Optional<Float> de las consultas nativas de moda -> Double para los DTO (null si no hay datos)
