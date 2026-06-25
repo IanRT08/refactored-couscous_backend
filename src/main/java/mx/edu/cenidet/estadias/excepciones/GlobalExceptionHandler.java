@@ -4,10 +4,13 @@ import lombok.extern.slf4j.Slf4j;
 import mx.edu.cenidet.estadias.dtos.comunes.ApiResponseDTO;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.stream.Collectors;
 
@@ -39,6 +42,42 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .badRequest()
                 .body(ApiResponseDTO.error(ex.getMessage()));
+    }
+
+    //Parámetro de ruta/query con tipo incorrecto (ej. texto donde se espera un Long): Error 400
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiResponseDTO<?>> handleTypeMismatch(
+            MethodArgumentTypeMismatchException ex) {
+
+        log.debug("Parámetro con tipo inválido: {}", ex.getMessage());
+        return ResponseEntity
+                .badRequest()
+                .body(ApiResponseDTO.error(
+                        "El parámetro '" + ex.getName() + "' tiene un formato inválido."));
+    }
+
+    //Falta un @RequestParam obligatorio: Error 400
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ApiResponseDTO<?>> handleMissingParam(
+            MissingServletRequestParameterException ex) {
+
+        log.debug("Parámetro obligatorio faltante: {}", ex.getMessage());
+        return ResponseEntity
+                .badRequest()
+                .body(ApiResponseDTO.error(
+                        "Falta el parámetro obligatorio '" + ex.getParameterName() + "'."));
+    }
+
+    //Body de la petición ilegible (JSON mal formado, vacío, etc.): Error 400
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponseDTO<?>> handleNotReadable(
+            HttpMessageNotReadableException ex) {
+
+        log.debug("Body de la solicitud no legible: {}", ex.getMessage());
+        return ResponseEntity
+                .badRequest()
+                .body(ApiResponseDTO.error(
+                        "El cuerpo de la solicitud no es válido o está mal formado."));
     }
 
     //Credenciales invalidas: Error 401
