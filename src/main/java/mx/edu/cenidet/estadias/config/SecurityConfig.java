@@ -121,6 +121,9 @@ public class SecurityConfig {
                         //Dashboard público: última telemetría + mapa
                         .requestMatchers(HttpMethod.GET, "/api/telemetria/resumen").permitAll()
 
+                        //Tabla pública de datos históricos (anterior al mes en curso)
+                        .requestMatchers(HttpMethod.GET, "/api/telemetria/publica/**").permitAll()
+
                         //Alertas generales del sistema (visitantes)
                         .requestMatchers(HttpMethod.GET, "/api/alertas/sistema").permitAll()
 

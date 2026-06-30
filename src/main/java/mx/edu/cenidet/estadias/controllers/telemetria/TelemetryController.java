@@ -70,6 +70,17 @@ public class TelemetryController {
         return ResponseEntity.ok(ApiResponseDTO.ok("Resumen de telemetría obtenido.", resumen));
     }
 
+    //Tabla pública: datos climáticos anteriores al mes en curso, sin autenticación.
+    @GetMapping("/publica/tabla")
+    public ResponseEntity<ApiResponseDTO<PageResponseDTO<ClimateReadingDTO>>> obtenerTablaPublica(
+            @RequestParam(defaultValue = "0")  int page,
+            @RequestParam(defaultValue = "12") int size) {
+
+        return ResponseEntity.ok(
+                ApiResponseDTO.ok("Datos públicos obtenidos.",
+                        climateReadingService.obtenerPublicaTabla(page, size)));
+    }
+
     //Histórico climático paginado para gráficas.
     @GetMapping("/climatica")
     @PreAuthorize("isAuthenticated()")

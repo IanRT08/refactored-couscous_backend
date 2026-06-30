@@ -13,6 +13,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -40,6 +41,18 @@ public class ClimateReadingService {
         return PageResponseDTO.of(
                 lecturaRepository.findByFechaLecturaBetween(
                                 filtro.getInicio(), filtro.getFin(), pageable)
+                        .map(this::mapToDTO)
+        );
+    }
+
+    //Tabla pública: datos anteriores al mes en curso, paginados, descendentes
+    @Transactional(readOnly = true)
+    public PageResponseDTO<ClimateReadingDTO> obtenerPublicaTabla(int page, int size) {
+        LocalDateTime inicioMesActual = LocalDate.now().withDayOfMonth(1).atStartOfDay();
+        var pageable = PageRequest.of(page, Math.min(size, 50),
+                Sort.by("fechaLectura").descending());
+        return PageResponseDTO.of(
+                lecturaRepository.findByFechaLecturaLessThan(inicioMesActual, pageable)
                         .map(this::mapToDTO)
         );
     }

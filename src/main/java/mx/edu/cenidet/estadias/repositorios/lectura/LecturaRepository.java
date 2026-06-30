@@ -49,6 +49,9 @@ public interface LecturaRepository extends JpaRepository<BeanLectura, Long> {
             LocalDateTime fin,
             Pageable pageable);
 
+    //Tabla pública: datos anteriores al mes en curso, sin filtros
+    Page<BeanLectura> findByFechaLecturaLessThan(LocalDateTime limite, Pageable pageable);
+
     //Estadísticas climáticas agregadas ──────────
     //Una sola consulta calcula todos los agregados en la BD
     //en lugar de traer miles de filas a Java.
