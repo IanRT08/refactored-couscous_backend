@@ -26,6 +26,10 @@ public interface LecturaRepository extends JpaRepository<BeanLectura, Long> {
     @Query("SELECT MAX(l.fechaLectura) FROM BeanLectura l")
     Optional<LocalDateTime> findMaxFechaLectura();
 
+    //Fecha del dato más antiguo — para limitar el date picker del frontend
+    @Query("SELECT MIN(l.fechaLectura) FROM BeanLectura l")
+    Optional<LocalDateTime> findMinFechaLectura();
+
     //Gap Recovery: recuperar rango perdido
     //Devuelve lecturas en orden cronológico ascendente para que
     //el Service las procese en secuencia sin generar huecos.

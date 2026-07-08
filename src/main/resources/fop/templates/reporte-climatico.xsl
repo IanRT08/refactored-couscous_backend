@@ -41,6 +41,7 @@
             Periodo: <xsl:value-of select="periodo/@inicio"/> — <xsl:value-of select="periodo/@fin"/>
           </fo:block>
 
+          <!-- ── Tabla de datos ──────────────────────────────────────── -->
           <fo:table table-layout="fixed" width="100%" border="0.5pt solid #cccccc">
             <fo:table-column column-width="20%"/>
             <fo:table-column column-width="16%"/>
@@ -76,6 +77,67 @@
               </xsl:for-each>
             </fo:table-body>
           </fo:table>
+
+          <!-- ── Estadísticas del periodo ──────────────────────────── -->
+          <xsl:if test="count(resumen/fila) &gt; 0">
+            <fo:block space-before="12pt" font-size="11pt" font-weight="bold" color="#003B8E" space-after="5pt">
+              Estadísticas del Periodo
+            </fo:block>
+            <fo:table table-layout="fixed" width="100%" border="0.5pt solid #cccccc"
+                      keep-together.within-page="always">
+              <fo:table-column column-width="20%"/>
+              <fo:table-column column-width="16%"/>
+              <fo:table-column column-width="16%"/>
+              <fo:table-column column-width="16%"/>
+              <fo:table-column column-width="16%"/>
+              <fo:table-column column-width="16%"/>
+              <fo:table-header>
+                <fo:table-row background-color="#1B5E20">
+                  <fo:table-cell padding="4pt"><fo:block color="white" font-size="9pt" font-weight="bold">Estadística</fo:block></fo:table-cell>
+                  <fo:table-cell padding="4pt"><fo:block color="white" font-size="9pt" font-weight="bold">Temp (°C)</fo:block></fo:table-cell>
+                  <fo:table-cell padding="4pt"><fo:block color="white" font-size="9pt" font-weight="bold">Viento (m/s)</fo:block></fo:table-cell>
+                  <fo:table-cell padding="4pt"><fo:block color="white" font-size="9pt" font-weight="bold">Humedad (%)</fo:block></fo:table-cell>
+                  <fo:table-cell padding="4pt"><fo:block color="white" font-size="9pt" font-weight="bold">Radiación (W/m²)</fo:block></fo:table-cell>
+                  <fo:table-cell padding="4pt"><fo:block color="white" font-size="9pt" font-weight="bold">Presión (hPa)</fo:block></fo:table-cell>
+                </fo:table-row>
+              </fo:table-header>
+              <fo:table-body>
+                <xsl:for-each select="resumen/fila">
+                  <fo:table-row>
+                    <xsl:if test="position() mod 2 = 0">
+                      <xsl:attribute name="background-color">#e8f5e9</xsl:attribute>
+                    </xsl:if>
+                    <fo:table-cell padding="3pt">
+                      <fo:block font-size="8pt" font-weight="bold">
+                        <xsl:value-of select="@etiqueta"/>
+                      </fo:block>
+                    </fo:table-cell>
+                    <fo:table-cell padding="3pt"><fo:block font-size="8pt"><xsl:value-of select="temperatura"/></fo:block></fo:table-cell>
+                    <fo:table-cell padding="3pt"><fo:block font-size="8pt"><xsl:value-of select="viento"/></fo:block></fo:table-cell>
+                    <fo:table-cell padding="3pt"><fo:block font-size="8pt"><xsl:value-of select="humedad"/></fo:block></fo:table-cell>
+                    <fo:table-cell padding="3pt"><fo:block font-size="8pt"><xsl:value-of select="radiacion"/></fo:block></fo:table-cell>
+                    <fo:table-cell padding="3pt"><fo:block font-size="8pt"><xsl:value-of select="presion"/></fo:block></fo:table-cell>
+                  </fo:table-row>
+                </xsl:for-each>
+              </fo:table-body>
+            </fo:table>
+          </xsl:if>
+
+          <!-- ── Gráfica ─────────────────────────────────────────────── -->
+          <xsl:if test="string-length(grafica) &gt; 0">
+            <fo:block space-before="14pt" font-size="11pt" font-weight="bold" color="#003B8E" space-after="6pt">
+              Gráfica del Periodo
+            </fo:block>
+            <fo:block>
+              <fo:external-graphic content-width="17cm" scaling="uniform">
+                <xsl:attribute name="src">
+                  <xsl:text>url('data:image/png;base64,</xsl:text>
+                  <xsl:value-of select="grafica"/>
+                  <xsl:text>')</xsl:text>
+                </xsl:attribute>
+              </fo:external-graphic>
+            </fo:block>
+          </xsl:if>
 
           <fo:block id="ultima-pagina"/>
         </fo:flow>

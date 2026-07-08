@@ -15,6 +15,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/estadisticas")
@@ -67,6 +68,13 @@ public class StatsController {
         return ResponseEntity.ok(
                 ApiResponseDTO.ok("Estadísticas eléctricas combinadas calculadas.",
                         statisticsService.calcularElectricasCombinadas(filtro)));
+    }
+
+    //Fechas mínimas disponibles por tipo de dato — para inicializar los date pickers del frontend
+    @GetMapping("/fechas")
+    public ResponseEntity<ApiResponseDTO<Map<String, String>>> fechasDisponibles() {
+        return ResponseEntity.ok(
+                ApiResponseDTO.ok("Fechas disponibles.", statisticsService.obtenerFechasDisponibles()));
     }
 
     private void validarRango(LocalDateTime inicio, LocalDateTime fin) {

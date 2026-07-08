@@ -12,6 +12,9 @@ import mx.edu.cenidet.estadias.repositorios.lecturaElectrica.LecturaElectricaRep
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -124,6 +127,23 @@ public class StatisticsService {
                             .energiaTotalPeriodo(stats.getEnergiaTotalPeriodo())
                             .build();
                 });
+    }
+
+    //Fechas mínimas disponibles por tipo de dato — para limitar los date pickers del frontend
+    @Transactional(readOnly = true)
+    public Map<String, String> obtenerFechasDisponibles() {
+        Map<String, String> result = new LinkedHashMap<>();
+        lecturaRepository.findMinFechaLectura()
+            .map(ldt -> ldt.toLocalDate().toString())
+            .ifPresent(d -> result.put("climaticaMin", d));
+        electricaRepository.findMinFechaLectura(FuenteElectrica.FOTOVOLTAICO)
+            .map(ldt -> ldt.toLocalDate().toString())
+            .ifPresent(d -> result.put("fotovoltaicoMin", d));
+        electricaRepository.findMinFechaLectura(FuenteElectrica.EOLICO)
+            .map(ldt -> ldt.toLocalDate().toString())
+            .ifPresent(d -> result.put("eolicoMin", d));
+        result.put("hoy", LocalDate.now().toString());
+        return result;
     }
 
     //Optional<Float> de las consultas nativas de moda -> Double para los DTO (null si no hay datos)

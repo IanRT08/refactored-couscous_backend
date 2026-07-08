@@ -22,6 +22,10 @@ public interface LecturaElectricaRepository extends JpaRepository<BeanLecturaEle
     //Dashboard / Gap Recovery: última lectura por fuente
     Optional<BeanLecturaElectrica> findTopByFuenteOrderByFechaLecturaDesc(FuenteElectrica fuente);
 
+    //Fecha del dato más antiguo por fuente — para limitar el date picker del frontend
+    @Query("SELECT MIN(le.fechaLectura) FROM BeanLecturaElectrica le WHERE le.fuente = :fuente")
+    Optional<LocalDateTime> findMinFechaLectura(@Param("fuente") FuenteElectrica fuente);
+
     //Respaldo histórico — última lectura ANTES de una fecha dada
     //Necesario para encadenar el cálculo de energía cuando se rellenan
     //meses antiguos por debajo de datos que ya existen en la tabla.
