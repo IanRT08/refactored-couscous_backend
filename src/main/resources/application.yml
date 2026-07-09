@@ -4,7 +4,7 @@ spring:
 
   # Base de datos
   datasource:
-    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:estadias}?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=America/Mexico_City
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:estadias}?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=America/Mexico_City
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:}
 

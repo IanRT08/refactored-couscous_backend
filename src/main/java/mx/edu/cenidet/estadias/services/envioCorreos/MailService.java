@@ -102,7 +102,7 @@ public class MailService {
             helper.setText(htmlContent, true);
             mailSender.send(message);
             log.info("Correo enviado a [{}]: {}", destinatario, asunto);
-        } catch (MessagingException e) {
+        } catch (MessagingException | RuntimeException e) {
             // No propagamos la excepción para no revertir la transacción principal
             log.error("Error al enviar correo a [{}]: {}", destinatario, e.getMessage());
         }
