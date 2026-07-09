@@ -2,6 +2,7 @@ package mx.edu.cenidet.estadias.controllers.estadisticas;
 
 import lombok.RequiredArgsConstructor;
 import mx.edu.cenidet.estadias.dtos.comunes.ApiResponseDTO;
+import mx.edu.cenidet.estadias.dtos.estadisticas.ClimateResumenDTO;
 import mx.edu.cenidet.estadias.dtos.estadisticas.ClimateStatisticsDTO;
 import mx.edu.cenidet.estadias.dtos.estadisticas.ElectricCombinedStatisticsDTO;
 import mx.edu.cenidet.estadias.dtos.estadisticas.ElectricStatisticsDTO;
@@ -68,6 +69,14 @@ public class StatsController {
         return ResponseEntity.ok(
                 ApiResponseDTO.ok("Estadísticas eléctricas combinadas calculadas.",
                         statisticsService.calcularElectricasCombinadas(filtro)));
+    }
+
+    //Resumen de 5 períodos para la tabla del dashboard (sin lanzar error si un período no tiene datos)
+    @GetMapping("/climatica/resumen")
+    public ResponseEntity<ApiResponseDTO<ClimateResumenDTO>> resumenClimatico() {
+        return ResponseEntity.ok(
+                ApiResponseDTO.ok("Resumen climático calculado.",
+                        statisticsService.calcularResumenClimatico()));
     }
 
     //Fechas mínimas disponibles por tipo de dato — para inicializar los date pickers del frontend

@@ -1,6 +1,7 @@
 package mx.edu.cenidet.estadias.services.stats;
 
 import lombok.RequiredArgsConstructor;
+import mx.edu.cenidet.estadias.dtos.estadisticas.ClimateResumenDTO;
 import mx.edu.cenidet.estadias.dtos.estadisticas.ClimateStatisticsDTO;
 import mx.edu.cenidet.estadias.dtos.estadisticas.ElectricCombinedStatisticsDTO;
 import mx.edu.cenidet.estadias.dtos.estadisticas.ElectricStatisticsDTO;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -127,6 +129,54 @@ public class StatisticsService {
                             .energiaTotalPeriodo(stats.getEnergiaTotalPeriodo())
                             .build();
                 });
+    }
+
+    //Resumen para la tabla del dashboard: 5 períodos en una sola llamada, sin lanzar excepción si un período está vacío
+    @Transactional(readOnly = true)
+    public ClimateResumenDTO calcularResumenClimatico() {
+        LocalDateTime ahora      = LocalDateTime.now();
+        LocalDate     hoyDate    = LocalDate.now();
+
+        LocalDateTime hoyInicio    = hoyDate.atStartOfDay();
+        LocalDateTime hoyFin       = hoyDate.atTime(23, 59, 59);
+        LocalDateTime ayerInicio   = hoyDate.minusDays(1).atStartOfDay();
+        LocalDateTime ayerFin      = hoyDate.minusDays(1).atTime(23, 59, 59);
+        LocalDateTime semanaInicio = ahora.minusDays(7);
+        LocalDateTime mesInicio    = ahora.minusDays(30);
+        LocalDateTime anioInicio   = ahora.minusYears(1);
+
+        return ClimateResumenDTO.builder()
+                .hoy   (calcularPeriodoAgregado(hoyInicio,    hoyFin))
+                .ayer   (calcularPeriodoAgregado(ayerInicio,   ayerFin))
+                .semana (calcularPeriodoAgregado(semanaInicio, ahora))
+                .mes    (calcularPeriodoAgregado(mesInicio,    ahora))
+                .anio   (calcularPeriodoAgregado(anioInicio,   ahora))
+                .build();
+    }
+
+    private ClimateStatisticsDTO calcularPeriodoAgregado(LocalDateTime inicio, LocalDateTime fin) {
+        return lecturaRepository.calcularEstadisticas(inicio, fin)
+                .filter(s -> s.getPromedioTemperatura() != null)
+                .map(s -> ClimateStatisticsDTO.builder()
+                        .inicio(inicio)
+                        .fin(fin)
+                        .promedioTemperatura(s.getPromedioTemperatura())
+                        .maxTemperatura(s.getMaxTemperatura())
+                        .minTemperatura(s.getMinTemperatura())
+                        .promedioViento(s.getPromedioViento())
+                        .maxViento(s.getMaxViento())
+                        .minViento(s.getMinViento())
+                        .promedioHumedad(s.getPromedioHumedad())
+                        .maxHumedad(s.getMaxHumedad())
+                        .minHumedad(s.getMinHumedad())
+                        .promedioRadiacion(s.getPromedioRadiacion())
+                        .maxRadiacion(s.getMaxRadiacion())
+                        .minRadiacion(s.getMinRadiacion())
+                        .promedioPresion(s.getPromedioPresion())
+                        .maxPresion(s.getMaxPresion())
+                        .minPresion(s.getMinPresion())
+                        .build())
+                .orElse(null);
     }
 
     //Fechas mínimas disponibles por tipo de dato — para limitar los date pickers del frontend
