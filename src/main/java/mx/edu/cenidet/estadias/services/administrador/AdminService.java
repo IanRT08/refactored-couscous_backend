@@ -222,6 +222,8 @@ public class AdminService {
             tipo = administradorRepository.findByUsuario_IdUsuario(u.getIdUsuario())
                     .map(a -> a.getTipoAdministrador().name()).orElse(null);
         }
+        boolean tienePermiso = permisoDescargaRepository
+                .existsByUsuario_IdUsuarioAndPermisoDescarga(u.getIdUsuario(), EstadoPermiso.ACTIVO);
         return UserSummaryDTO.builder()
                 .idUsuario(u.getIdUsuario())
                 .nombreUsuario(u.getNombreUsuario())
@@ -231,6 +233,7 @@ public class AdminService {
                 .fechaRegistro(u.getFechaRegistro())
                 .esAdministrador(esAdmin)
                 .tipoAdministrador(tipo)
+                .tienePermisoDescarga(tienePermiso)
                 .build();
     }
 
@@ -243,6 +246,8 @@ public class AdminService {
         }
         String foto = (u.getFotoPerfil() != null && u.getFotoPerfil().length > 0)
                 ? Base64.getEncoder().encodeToString(u.getFotoPerfil()) : null;
+        boolean tienePermiso = permisoDescargaRepository
+                .existsByUsuario_IdUsuarioAndPermisoDescarga(u.getIdUsuario(), EstadoPermiso.ACTIVO);
         return UserDetailDTO.builder()
                 .idUsuario(u.getIdUsuario())
                 .nombreUsuario(u.getNombreUsuario())
@@ -253,6 +258,7 @@ public class AdminService {
                 .fechaRegistro(u.getFechaRegistro())
                 .esAdministrador(esAdmin)
                 .tipoAdministrador(tipo)
+                .tienePermisoDescarga(tienePermiso)
                 .build();
     }
 

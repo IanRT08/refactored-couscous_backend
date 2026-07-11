@@ -15,5 +15,6 @@ public class UserSummaryDTO {
     private LocalDateTime fechaRegistro;
     private boolean esAdministrador;
     private String tipoAdministrador;
+    private boolean tienePermisoDescarga;
 
 }
