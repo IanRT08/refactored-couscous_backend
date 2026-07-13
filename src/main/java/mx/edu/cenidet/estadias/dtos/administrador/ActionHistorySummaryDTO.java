@@ -14,5 +14,6 @@ public class ActionHistorySummaryDTO {
     private LocalDateTime fechaAccion;
     private Long idUsuario;
     private String nombreUsuario;
+    private String nombreCompleto;
 
 }

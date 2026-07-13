@@ -2,6 +2,7 @@ package mx.edu.cenidet.estadias.repositorios.administrador;
 
 import mx.edu.cenidet.estadias.modelos.administrador.BeanAdministrador;
 import mx.edu.cenidet.estadias.modelos.administrador.TipoAdministrador;
+import mx.edu.cenidet.estadias.modelos.usuario.EstadoUsuario;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -21,5 +22,8 @@ public interface AdministradorRepository extends JpaRepository<BeanAdministrador
 
     //Mostrar todos los admins
     List<BeanAdministrador> findAllByOrderByUsuario_NombreUsuarioAsc();
+
+    //Contar superadmins activos (para limitar a 5)
+    long countByTipoAdministradorAndUsuario_Estado(TipoAdministrador tipo, EstadoUsuario estado);
 
 }

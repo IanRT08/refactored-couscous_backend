@@ -90,6 +90,18 @@ public class AdminController {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponseDTO.ok("Administrador creado. Se enviaron sus credenciales por correo.", nuevo));
     }
 
+    //Cambiar tipo de administrador (SUPERADMINISTRADOR only)
+    @PutMapping("/administradores/{idAdministrador}/tipo")
+    @PreAuthorize("hasRole('SUPERADMINISTRADOR')")
+    public ResponseEntity<ApiResponseDTO<AdminSummaryDTO>> cambiarTipoAdministrador(
+            @PathVariable Long idAdministrador,
+            @Valid @RequestBody UpdateAdminTypeRequestDTO dto,
+            HttpServletRequest request) {
+        Long idSuperAdmin = authUtils.getIdUsuarioActual(request);
+        return ResponseEntity.ok(ApiResponseDTO.ok("Tipo de administrador actualizado.",
+                adminService.cambiarTipoAdministrador(idSuperAdmin, idAdministrador, dto)));
+    }
+
     //Historial global de todos los usuarios
     @GetMapping("/historial")
     @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'SUPERADMINISTRADOR')")

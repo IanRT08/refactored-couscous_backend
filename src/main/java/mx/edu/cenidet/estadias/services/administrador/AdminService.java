@@ -108,6 +108,14 @@ public class AdminService {
             throw new BusinessRuleException("Contraseña incorrecta. No se pudo confirmar la acción.");
         }
 
+        if (TipoAdministrador.SUPERADMINISTRADOR.equals(dto.getTipoAdministrador())) {
+            long countSuper = administradorRepository.countByTipoAdministradorAndUsuario_Estado(
+                    TipoAdministrador.SUPERADMINISTRADOR, EstadoUsuario.ACTIVO);
+            if (countSuper >= 5) {
+                throw new BusinessRuleException("No se pueden tener más de 5 superadministradores activos.");
+            }
+        }
+
         if (usuarioRepository.existsByNombreUsuario(dto.getNombreUsuario())) {
             throw new BusinessRuleException("El nombre de usuario ya está en uso.");
         }
@@ -186,6 +194,39 @@ public class AdminService {
                         dto.getMotivo() != null ? dto.getMotivo() : "Sin motivo especificado"));
 
         log.info("Permiso de descarga de {} cambiado a {}", usuario.getNombreUsuario(), dto.getNuevoPermiso());
+    }
+
+    @Transactional
+    public AdminSummaryDTO cambiarTipoAdministrador(Long idSuperAdmin, Long idAdministrador, UpdateAdminTypeRequestDTO dto) {
+        verificarEsSuperAdmin(idSuperAdmin);
+
+        BeanAdministrador admin = administradorRepository.findById(idAdministrador)
+                .orElseThrow(() -> new ResourceNotFoundException("Administrador no encontrado."));
+
+        if (idSuperAdmin.equals(admin.getUsuario().getIdUsuario())) {
+            throw new BusinessRuleException("No puedes cambiar tu propio tipo de administrador.");
+        }
+
+        if (TipoAdministrador.SUPERADMINISTRADOR.equals(dto.getNuevoTipo())) {
+            long countSuper = administradorRepository.countByTipoAdministradorAndUsuario_Estado(
+                    TipoAdministrador.SUPERADMINISTRADOR, EstadoUsuario.ACTIVO);
+            if (countSuper >= 5) {
+                throw new BusinessRuleException("No se pueden tener más de 5 superadministradores activos.");
+            }
+        }
+
+        TipoAdministrador tipoAnterior = admin.getTipoAdministrador();
+        admin.setTipoAdministrador(dto.getNuevoTipo());
+        administradorRepository.save(admin);
+
+        actionHistoryService.registrar(idSuperAdmin, "TIPO_ADMIN_CAMBIADO",
+                String.format("Admin %s: %s → %s",
+                        admin.getUsuario().getNombreUsuario(), tipoAnterior, dto.getNuevoTipo()));
+
+        log.info("Tipo de administrador {} cambiado: {} → {}",
+                admin.getUsuario().getNombreUsuario(), tipoAnterior, dto.getNuevoTipo());
+
+        return mapToAdminSummaryDTO(admin, admin.getUsuario());
     }
 
     private void verificarEsAdmin(Long idUsuario) {

@@ -73,6 +73,7 @@ public class ActionHistoryService {
                 .fechaAccion(h.getFechaAccion())
                 .idUsuario(h.getUsuario().getIdUsuario())
                 .nombreUsuario(h.getUsuario().getNombreUsuario())
+                .nombreCompleto(h.getUsuario().getNombreCompleto())
                 .build();
     }
 }
