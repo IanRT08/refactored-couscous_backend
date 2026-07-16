@@ -90,27 +90,27 @@ public interface LecturaRepository extends JpaRepository<BeanLectura, Long> {
 
     //Moda por variable
     @Query(value = "SELECT temperatura FROM Lectura " +
-            "WHERE fechaLectura BETWEEN :inicio AND :fin AND temperatura IS NOT NULL " +
+            "WHERE fecha_lectura BETWEEN :inicio AND :fin AND temperatura IS NOT NULL " +
             "GROUP BY temperatura ORDER BY COUNT(*) DESC, temperatura ASC LIMIT 1", nativeQuery = true)
     Optional<Float> modaTemperatura(@Param("inicio") LocalDateTime inicio, @Param("fin") LocalDateTime fin);
 
     @Query(value = "SELECT viento FROM Lectura " +
-            "WHERE fechaLectura BETWEEN :inicio AND :fin AND viento IS NOT NULL " +
+            "WHERE fecha_lectura BETWEEN :inicio AND :fin AND viento IS NOT NULL " +
             "GROUP BY viento ORDER BY COUNT(*) DESC, viento ASC LIMIT 1", nativeQuery = true)
     Optional<Float> modaViento(@Param("inicio") LocalDateTime inicio, @Param("fin") LocalDateTime fin);
 
     @Query(value = "SELECT humedad FROM Lectura " +
-            "WHERE fechaLectura BETWEEN :inicio AND :fin AND humedad IS NOT NULL " +
+            "WHERE fecha_lectura BETWEEN :inicio AND :fin AND humedad IS NOT NULL " +
             "GROUP BY humedad ORDER BY COUNT(*) DESC, humedad ASC LIMIT 1", nativeQuery = true)
     Optional<Float> modaHumedad(@Param("inicio") LocalDateTime inicio, @Param("fin") LocalDateTime fin);
 
     @Query(value = "SELECT radiacion FROM Lectura " +
-            "WHERE fechaLectura BETWEEN :inicio AND :fin AND radiacion IS NOT NULL " +
+            "WHERE fecha_lectura BETWEEN :inicio AND :fin AND radiacion IS NOT NULL " +
             "GROUP BY radiacion ORDER BY COUNT(*) DESC, radiacion ASC LIMIT 1", nativeQuery = true)
     Optional<Float> modaRadiacion(@Param("inicio") LocalDateTime inicio, @Param("fin") LocalDateTime fin);
 
     @Query(value = "SELECT presion FROM Lectura " +
-            "WHERE fechaLectura BETWEEN :inicio AND :fin AND presion IS NOT NULL " +
+            "WHERE fecha_lectura BETWEEN :inicio AND :fin AND presion IS NOT NULL " +
             "GROUP BY presion ORDER BY COUNT(*) DESC, presion ASC LIMIT 1", nativeQuery = true)
     Optional<Float> modaPresion(@Param("inicio") LocalDateTime inicio, @Param("fin") LocalDateTime fin);
 
