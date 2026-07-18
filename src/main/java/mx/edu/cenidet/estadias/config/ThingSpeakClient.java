@@ -78,6 +78,39 @@ public class ThingSpeakClient {
         }
     }
 
+    //Sondeo rápido: devuelve true si existe al menos un feed desde el origen de los
+    //tiempos hasta "hasta". Usa results=1 para minimizar datos transferidos.
+    public boolean existenFeedsHasta(FuenteElectrica fuente, LocalDateTime hasta) {
+        CanalConfig canal = canales.get(fuente);
+        try {
+            //Punto de inicio arbitrariamente antiguo (ThingSpeak filtra por lo disponible)
+            String startUTC = LocalDateTime.of(2000, 1, 1, 0, 0, 0)
+                    .atZone(ZONA_CENIDET)
+                    .withZoneSameInstant(ZoneId.of("UTC"))
+                    .format(TS_DATE_FORMAT);
+            String endUTC = hasta
+                    .atZone(ZONA_CENIDET)
+                    .withZoneSameInstant(ZoneId.of("UTC"))
+                    .format(TS_DATE_FORMAT);
+            ThingSpeakFeedDTO respuesta = restClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/channels/{id}/feeds.json")
+                            .queryParam("api_key", canal.readApiKey())
+                            .queryParam("start", startUTC)
+                            .queryParam("end", endUTC)
+                            .queryParam("results", 1)
+                            .build(canal.channelId()))
+                    .retrieve()
+                    .body(ThingSpeakFeedDTO.class);
+            return respuesta != null
+                    && respuesta.getFeeds() != null
+                    && !respuesta.getFeeds().isEmpty();
+        } catch (RestClientException ex) {
+            log.warn("[TS-CLIENT] Sondeo falló ({}) en {}: {}", fuente, hasta, ex.getMessage());
+            return false;
+        }
+    }
+
     //Feeds por rango de fechas de un canal
     public List<ThingSpeakFeedDTO.Feed> obtenerFeedsPorRango(
             FuenteElectrica fuente, LocalDateTime desde, LocalDateTime hasta) {

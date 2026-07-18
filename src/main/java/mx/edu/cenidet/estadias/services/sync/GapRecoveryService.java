@@ -1,6 +1,5 @@
 package mx.edu.cenidet.estadias.services.sync;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import mx.edu.cenidet.estadias.config.AmbientWeatherClient;
 import mx.edu.cenidet.estadias.config.ThingSpeakClient;
@@ -19,7 +18,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -31,7 +31,6 @@ import java.util.Optional;
 import java.util.Set;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class GapRecoveryService {
 
@@ -67,6 +66,24 @@ public class GapRecoveryService {
     private final ThingSpeakClient thingSpeakClient;
     private final AmbientWeatherMapper ambientWeatherMapper;
     private final ThingSpeakMapper thingSpeakMapper;
+    private final TransactionTemplate transactionTemplate;
+
+    public GapRecoveryService(
+            LecturaRepository lecturaRepository,
+            LecturaElectricaRepository electricaRepository,
+            AmbientWeatherClient ambientWeatherClient,
+            ThingSpeakClient thingSpeakClient,
+            AmbientWeatherMapper ambientWeatherMapper,
+            ThingSpeakMapper thingSpeakMapper,
+            PlatformTransactionManager transactionManager) {
+        this.lecturaRepository = lecturaRepository;
+        this.electricaRepository = electricaRepository;
+        this.ambientWeatherClient = ambientWeatherClient;
+        this.thingSpeakClient = thingSpeakClient;
+        this.ambientWeatherMapper = ambientWeatherMapper;
+        this.thingSpeakMapper = thingSpeakMapper;
+        this.transactionTemplate = new TransactionTemplate(transactionManager);
+    }
 
     private void pausar() {
         try {
@@ -107,7 +124,6 @@ public class GapRecoveryService {
     }
 
     // ── Recuperación climática (Ambient Weather) ──────────────
-    @Transactional
     public void recuperarBrechasClimaticas() {
         Optional<LocalDateTime> ultima = lecturaRepository.findMaxFechaLectura();
         LocalDateTime desde = ultima.orElse(LocalDateTime.now().minusHours(horasInicial));
@@ -145,16 +161,8 @@ public class GapRecoveryService {
                         .sorted(Comparator.comparing(BeanLectura::getFechaLectura))
                         .toList();
 
-                //Una sola consulta para saber qué fechas de esta página ya
-                //existen, en vez de un existsBy... por cada registro.
-                Set<LocalDateTime> existentes = new HashSet<>(lecturaRepository.findFechasByFechaLecturaBetween(
-                        lecturas.get(0).getFechaLectura(),
-                        lecturas.get(lecturas.size() - 1).getFechaLectura()));
-                List<BeanLectura> nuevas = lecturas.stream()
-                        .filter(l -> !existentes.contains(l.getFechaLectura()))
-                        .toList();
-                lecturaRepository.saveAll(nuevas);
-                totalGuardados += nuevas.size();
+                int guardadas = guardarPaginaClimatica(lecturas);
+                totalGuardados += guardadas;
 
                 LocalDateTime masAntigua = lecturas.get(0).getFechaLectura();
                 pagina++;
@@ -179,7 +187,6 @@ public class GapRecoveryService {
     }
 
     // ── Recuperación eléctrica (ThingSpeak, una fuente a la vez) ──
-    @Transactional
     public void recuperarBrechasElectricas(FuenteElectrica fuente) {
         Optional<BeanLecturaElectrica> ultimaLectura =
                 electricaRepository.findTopByFuenteOrderByFechaLecturaDesc(fuente);
@@ -221,25 +228,9 @@ public class GapRecoveryService {
                         .sorted(Comparator.comparing(BeanLecturaElectrica::getFechaLectura))
                         .toList();
 
-                //Una sola consulta para saber qué fechas de esta página ya
-                //existen, en vez de un existsBy... por cada registro.
-                Set<LocalDateTime> existentes = new HashSet<>(electricaRepository.findFechasByFuenteAndFechaLecturaBetween(
-                        fuente,
-                        lecturas.get(0).getFechaLectura(),
-                        lecturas.get(lecturas.size() - 1).getFechaLectura()));
-
-                List<BeanLecturaElectrica> nuevas = new ArrayList<>();
-                for (BeanLecturaElectrica lectura : lecturas) {
-                    if (existentes.contains(lectura.getFechaLectura())) {
-                        anterior = lectura;
-                        continue;
-                    }
-                    lectura.setEnergia(EnergiaCalculator.calcularIncremento(anterior, lectura));
-                    nuevas.add(lectura);
-                    anterior = lectura;
-                }
-                electricaRepository.saveAll(nuevas);
-                totalGuardados += nuevas.size();
+                PaginaElectricaResultado resultado = guardarPaginaElectrica(fuente, lecturas, anterior);
+                anterior = resultado.ultimaLectura();
+                totalGuardados += resultado.guardadas();
                 pagina++;
 
                 if (feeds.size() < LIMITE_SOSPECHA_TRUNCAMIENTO_TS) {
@@ -258,5 +249,49 @@ public class GapRecoveryService {
         } catch (Exception ex) {
             log.error("[GAP-RECOVERY] Error recuperando brechas eléctricas ({}): {}", fuente, ex.getMessage());
         }
+    }
+
+    // ── Helpers de persistencia (cada página en su propia transacción) ──
+    //Usar TransactionTemplate por página (en lugar de @Transactional en el método
+    //padre) garantiza que find + saveAll sean atómicos por página, sin mantener
+    //una sola transacción abierta durante todo el bucle de paginación.
+
+    private int guardarPaginaClimatica(List<BeanLectura> lecturas) {
+        Integer guardadas = transactionTemplate.execute(status -> {
+            Set<LocalDateTime> existentes = new HashSet<>(lecturaRepository.findFechasByFechaLecturaBetween(
+                    lecturas.get(0).getFechaLectura(),
+                    lecturas.get(lecturas.size() - 1).getFechaLectura()));
+            List<BeanLectura> nuevas = lecturas.stream()
+                    .filter(l -> !existentes.contains(l.getFechaLectura()))
+                    .toList();
+            lecturaRepository.saveAll(nuevas);
+            return nuevas.size();
+        });
+        return guardadas != null ? guardadas : 0;
+    }
+
+    private record PaginaElectricaResultado(int guardadas, BeanLecturaElectrica ultimaLectura) {}
+
+    private PaginaElectricaResultado guardarPaginaElectrica(
+            FuenteElectrica fuente, List<BeanLecturaElectrica> lecturas, BeanLecturaElectrica anteriorInicial) {
+        return transactionTemplate.execute(status -> {
+            Set<LocalDateTime> existentes = new HashSet<>(electricaRepository.findFechasByFuenteAndFechaLecturaBetween(
+                    fuente,
+                    lecturas.get(0).getFechaLectura(),
+                    lecturas.get(lecturas.size() - 1).getFechaLectura()));
+            BeanLecturaElectrica anterior = anteriorInicial;
+            List<BeanLecturaElectrica> nuevas = new ArrayList<>();
+            for (BeanLecturaElectrica lectura : lecturas) {
+                if (existentes.contains(lectura.getFechaLectura())) {
+                    anterior = lectura;
+                    continue;
+                }
+                lectura.setEnergia(EnergiaCalculator.calcularIncremento(anterior, lectura));
+                nuevas.add(lectura);
+                anterior = lectura;
+            }
+            electricaRepository.saveAll(nuevas);
+            return new PaginaElectricaResultado(nuevas.size(), anterior);
+        });
     }
 }

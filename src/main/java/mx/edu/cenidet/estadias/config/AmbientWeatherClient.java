@@ -83,6 +83,29 @@ public class AmbientWeatherClient {
         }
     }
 
+    //Sondeo rápido: devuelve true si existe al menos un registro anterior a "hasta".
+    //Usa limit=1 para minimizar datos transferidos; pensado para la búsqueda binaria
+    //de la fecha más antigua disponible en la API.
+    public boolean existenLecturasHasta(LocalDateTime hasta) {
+        try {
+            long endDateMs = hasta.atZone(ZONA_CENIDET).toInstant().toEpochMilli();
+            AmbientWeatherReadingDTO[] lecturas = restClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/devices/{mac}")
+                            .queryParam("applicationKey", applicationKey)
+                            .queryParam("apiKey", apiKey)
+                            .queryParam("endDate", endDateMs)
+                            .queryParam("limit", 1)
+                            .build(macAddress))
+                    .retrieve()
+                    .body(AmbientWeatherReadingDTO[].class);
+            return lecturas != null && lecturas.length > 0;
+        } catch (RestClientException ex) {
+            log.warn("[AW-CLIENT] Sondeo falló en {}: {}", hasta, ex.getMessage());
+            return false;
+        }
+    }
+
     //Histórico por rango de fechas
     public List<AmbientWeatherReadingDTO> obtenerHistoricoPorRango(
             LocalDateTime desde, LocalDateTime hasta) {

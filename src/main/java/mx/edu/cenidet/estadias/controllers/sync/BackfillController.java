@@ -2,6 +2,8 @@ package mx.edu.cenidet.estadias.controllers.sync;
 
 import lombok.RequiredArgsConstructor;
 import mx.edu.cenidet.estadias.dtos.comunes.ApiResponseDTO;
+import mx.edu.cenidet.estadias.dtos.sync.BackfillEstadoDTO;
+import mx.edu.cenidet.estadias.dtos.sync.FechasDisponiblesDTO;
 import mx.edu.cenidet.estadias.excepciones.BusinessRuleException;
 import mx.edu.cenidet.estadias.modelos.lecturaElectrica.FuenteElectrica;
 import mx.edu.cenidet.estadias.services.sync.HistoricalBackfillService;
@@ -24,6 +26,19 @@ import java.time.LocalDateTime;
 public class BackfillController {
 
     private final HistoricalBackfillService historicalBackfillService;
+
+    @GetMapping("/estado")
+    public ResponseEntity<ApiResponseDTO<BackfillEstadoDTO>> obtenerEstado() {
+        return ResponseEntity.ok(ApiResponseDTO.ok("Estado obtenido", historicalBackfillService.obtenerEstado()));
+    }
+
+    //Detecta la fecha más antigua disponible en cada API externa mediante búsqueda binaria.
+    //Puede tardar entre 15-30 s según la latencia de las APIs externas (≈6 llamadas por fuente).
+    @GetMapping("/detectar-inicio")
+    public ResponseEntity<ApiResponseDTO<FechasDisponiblesDTO>> detectarInicio() {
+        FechasDisponiblesDTO resultado = historicalBackfillService.detectarFechasDisponibles();
+        return ResponseEntity.ok(ApiResponseDTO.ok("Fechas detectadas", resultado));
+    }
 
     @PostMapping("/climatico")
     public ResponseEntity<ApiResponseDTO<Void>> respaldarClimatico(

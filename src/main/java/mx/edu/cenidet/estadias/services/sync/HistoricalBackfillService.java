@@ -5,6 +5,8 @@ import mx.edu.cenidet.estadias.config.AmbientWeatherClient;
 import mx.edu.cenidet.estadias.config.ThingSpeakClient;
 import mx.edu.cenidet.estadias.dtos.client.AmbientWeatherReadingDTO;
 import mx.edu.cenidet.estadias.dtos.client.ThingSpeakFeedDTO;
+import mx.edu.cenidet.estadias.dtos.sync.BackfillEstadoDTO;
+import mx.edu.cenidet.estadias.dtos.sync.FechasDisponiblesDTO;
 import mx.edu.cenidet.estadias.mappers.AmbientWeatherMapper;
 import mx.edu.cenidet.estadias.mappers.ThingSpeakMapper;
 import mx.edu.cenidet.estadias.modelos.lectura.BeanLectura;
@@ -21,6 +23,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Optional;
+import java.util.function.Predicate;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.HashSet;
@@ -87,6 +91,17 @@ public class HistoricalBackfillService {
 
     public boolean electricoEstaEnProgreso(FuenteElectrica fuente) {
         return electricoEnProgreso.get(fuente).get();
+    }
+
+    public BackfillEstadoDTO obtenerEstado() {
+        return new BackfillEstadoDTO(
+                climaticoEnProgreso.get(),
+                electricoEnProgreso.get(FuenteElectrica.FOTOVOLTAICO).get(),
+                electricoEnProgreso.get(FuenteElectrica.EOLICO).get(),
+                lecturaRepository.findMinFechaLectura().orElse(null),
+                electricaRepository.findMinFechaLectura(FuenteElectrica.FOTOVOLTAICO).orElse(null),
+                electricaRepository.findMinFechaLectura(FuenteElectrica.EOLICO).orElse(null)
+        );
     }
 
     // ── Respaldo climático (Ambient Weather) ──────────────────
@@ -252,6 +267,54 @@ public class HistoricalBackfillService {
             Thread.sleep(delayMsEntrePaginas);
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
+        }
+    }
+
+    // ── Detección de fechas disponibles en las APIs externas ──────────
+
+    //Busca la fecha más antigua disponible en cada API mediante búsqueda binaria
+    //sobre los últimos 4 años (≈6 llamadas por fuente). Se puede tardar ~15-30 s.
+    public FechasDisponiblesDTO detectarFechasDisponibles() {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime inicioAW      = buscarFechaInicio(cursor -> ambientWeatherClient.existenLecturasHasta(cursor), now).orElse(null);
+        LocalDateTime inicioFV      = buscarFechaInicio(cursor -> thingSpeakClient.existenFeedsHasta(FuenteElectrica.FOTOVOLTAICO, cursor), now).orElse(null);
+        LocalDateTime inicioEolico  = buscarFechaInicio(cursor -> thingSpeakClient.existenFeedsHasta(FuenteElectrica.EOLICO, cursor), now).orElse(null);
+        return new FechasDisponiblesDTO(inicioAW, inicioFV, inicioEolico);
+    }
+
+    //Búsqueda binaria sobre los últimos MAX_MESES_SONDEO meses.
+    //f(cursor) = "¿existen datos ANTES de cursor?". Se espera f(now)=true y
+    //f(now-MAX_MESES_SONDEO meses)=false (o se retorna el límite como aproximación).
+    //Granularidad resultante: ±1 mes.
+    private static final int MAX_MESES_SONDEO = 48; // 4 años
+
+    private Optional<LocalDateTime> buscarFechaInicio(Predicate<LocalDateTime> existeAntesDe, LocalDateTime now) {
+        try {
+            // Si no hay datos recientes, la fuente está desconectada o vacía.
+            if (!existeAntesDe.test(now)) {
+                return Optional.empty();
+            }
+            // Si hay datos de más de 4 años, devolver el límite como aproximación.
+            if (existeAntesDe.test(now.minusMonths(MAX_MESES_SONDEO))) {
+                return Optional.of(now.minusMonths(MAX_MESES_SONDEO));
+            }
+            // Búsqueda binaria: lo = último offset con datos; hi = primer offset sin datos.
+            int lo = 0;
+            int hi = MAX_MESES_SONDEO;
+            while (hi - lo > 1) {
+                int mid = (lo + hi) / 2;
+                if (existeAntesDe.test(now.minusMonths(mid))) {
+                    lo = mid;
+                } else {
+                    hi = mid;
+                }
+            }
+            // Los datos empiezan aproximadamente en (now - hi meses). Devolver el 1º de ese mes.
+            return Optional.of(now.minusMonths(hi).withDayOfMonth(1)
+                    .withHour(0).withMinute(0).withSecond(0).withNano(0));
+        } catch (Exception ex) {
+            log.warn("[RESPALDO-HISTORICO] Error durante sondeo de fechas: {}", ex.getMessage());
+            return Optional.empty();
         }
     }
 }
