@@ -17,6 +17,7 @@ import javax.xml.transform.sax.SAXResult;
 import javax.xml.transform.stream.StreamSource;
 import java.io.ByteArrayOutputStream;
 import java.io.StringReader;
+import java.util.Base64;
 import java.util.List;
 
 @Service
@@ -44,7 +45,6 @@ public class PdfReportService {
         try {
             ByteArrayOutputStream out = new ByteArrayOutputStream();
 
-            //FOP procesa el resultado de la transformación XSLT
             Fop fop = fopFactory.newFop(MimeConstants.MIME_PDF, out);
 
             Source plantilla = new StreamSource(
@@ -52,9 +52,13 @@ public class PdfReportService {
             Transformer transformer =
                     TransformerFactory.newInstance().newTransformer(plantilla);
 
+            String logoBase64 = cargarLogoBase64();
+            if (logoBase64 != null) {
+                transformer.setParameter("logoBase64", logoBase64);
+            }
+
             Source src = new StreamSource(new StringReader(xmlDatos));
             Result res = new SAXResult(fop.getDefaultHandler());
-
             transformer.transform(src, res);
 
             log.info("Reporte PDF generado con plantilla: {}", rutaPlantilla);
@@ -62,6 +66,17 @@ public class PdfReportService {
 
         } catch (Exception e) {
             throw new ReportGenerationException("Error generando PDF: " + e.getMessage(), e);
+        }
+    }
+
+    private String cargarLogoBase64() {
+        try {
+            byte[] bytes = new ClassPathResource("fop/templates/Logo_cenidet.png")
+                    .getInputStream().readAllBytes();
+            return Base64.getEncoder().encodeToString(bytes);
+        } catch (Exception e) {
+            log.warn("Logo CENIDET no disponible, se usará texto como respaldo: {}", e.getMessage());
+            return null;
         }
     }
 }
