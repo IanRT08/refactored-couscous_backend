@@ -196,12 +196,14 @@ public class AuthService implements UserDetailsService {
     }
 
     @Transactional
-        public void solicitarRecuperacionPassword(ForgotPasswordRequestDTO dto) {
-        BeanUsuario usuario = usuarioRepository.findByCorreo(dto.getCorreo())
-             .orElseThrow(() -> new BusinessRuleException("Correo no registrado."));
-        tokenService.generarYEnviarToken(usuario.getIdUsuario(),
-                TipoToken.RECUPERACION,
-                usuario.getCorreo(), usuario.getNombreCompleto());
+    public void solicitarRecuperacionPassword(ForgotPasswordRequestDTO dto) {
+        // No revelar si el correo existe o no (previene enumeración de usuarios).
+        // El controlador ya retorna el mismo mensaje genérico en ambos casos.
+        usuarioRepository.findByCorreo(dto.getCorreo()).ifPresent(usuario ->
+            tokenService.generarYEnviarToken(usuario.getIdUsuario(),
+                    TipoToken.RECUPERACION,
+                    usuario.getCorreo(), usuario.getNombreCompleto())
+        );
     }
 
     @Transactional

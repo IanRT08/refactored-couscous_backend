@@ -166,7 +166,9 @@ public class ChartGeneratorService {
         }
     }
 
+    private static final ZoneId ZONA_CENIDET = ZoneId.of("America/Mexico_City");
+
     private Date toDate(java.time.LocalDateTime ldt) {
-        return Date.from(ldt.atZone(ZoneId.systemDefault()).toInstant());
+        return Date.from(ldt.atZone(ZONA_CENIDET).toInstant());
     }
 }

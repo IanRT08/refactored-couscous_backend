@@ -88,7 +88,12 @@ public class TokenService {
     @Scheduled(fixedRate = 3_600_000) // cada 60 minutos
     @Transactional
     public void purgarTokensExpirados() {
-        tokenRepository.deleteByFechaExpiracionBefore(LocalDateTime.now());
-        log.debug("Purga de tokens expirados completada.");
+        try {
+            tokenRepository.deleteByFechaExpiracionBefore(LocalDateTime.now());
+            log.debug("Purga de tokens expirados completada.");
+        } catch (Exception e) {
+            log.warn("Error durante la purga de tokens expirados — la tabla token puede crecer. Causa: {}",
+                    e.getMessage());
+        }
     }
 }

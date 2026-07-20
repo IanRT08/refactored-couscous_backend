@@ -19,7 +19,7 @@ spring:
     hibernate:
       # "update" es comodo en desarrollo. En producción usar "validate"
       # y manejar el esquema con migraciones (Flyway/Liquibase).
-      ddl-auto: ${JPA_DDL_AUTO:update}
+      ddl-auto: ${JPA_DDL_AUTO:validate}
     show-sql: false
     properties:
       hibernate:
@@ -61,7 +61,7 @@ jwt:
   # Generar una con, por ejemplo:
   #   openssl rand -base64 32
   # NUNCA subir el valor real a git: definirla como variable de entorno JWT_SECRET.
-  secret: ${JWT_SECRET:}
+  secret: ${JWT_SECRET}
   expiration-ms: ${JWT_EXPIRATION_MS:86400000}   # 24 h
 
 

@@ -12,7 +12,6 @@ import mx.edu.cenidet.estadias.repositorios.lecturaElectrica.LecturaElectricaRep
 import mx.edu.cenidet.estadias.util.EnergiaCalculator;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -31,7 +30,9 @@ public class ThingSpeakSyncService {
         }
     }
 
-    @Transactional
+    // @Transactional aquí sería un no-op: Spring AOP no intercepta llamadas internas
+    // (this.método()). No se necesita una transacción compartida porque el scheduler
+    // usa fixedDelay (sin concurrencia) y cada save() de Spring Data es atómico.
     public void sincronizarFuente(FuenteElectrica fuente) {
         try {
             //Obtener el último feed del canal
