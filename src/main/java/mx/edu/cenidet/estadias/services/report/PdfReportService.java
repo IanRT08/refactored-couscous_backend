@@ -25,23 +25,28 @@ import java.util.List;
 @Slf4j
 public class PdfReportService {
 
-    private final FopFactory         fopFactory;
-    private final ReportDataAssembler assembler;
+    private final FopFactory           fopFactory;
+    private final ReportDataAssembler  assembler;
+    private final ChartGeneratorService chartGeneratorService;
 
     //Reporte PDF Climático
     public byte[] generarReporteClimatico(List<BeanLectura> datos, ReportFilterDTO filtro) {
         String xml = assembler.toXmlClimatico(datos, filtro);
-        return transformarPdf(xml, "fop/templates/reporte-climatico.xsl");
+        byte[] png = chartGeneratorService.generarGraficaClimatica(datos, filtro.getVariables());
+        String graficaBase64 = png.length > 0 ? Base64.getEncoder().encodeToString(png) : null;
+        return transformarPdf(xml, "fop/templates/reporte-climatico.xsl", graficaBase64);
     }
 
     //Reporte PDF Eléctrico
     public byte[] generarReporteElectrico(List<BeanLecturaElectrica> datos, ReportFilterDTO filtro) {
         String xml = assembler.toXmlElectrico(datos, filtro);
-        return transformarPdf(xml, "fop/templates/reporte-electrico.xsl");
+        byte[] png = chartGeneratorService.generarGraficaElectrica(datos, filtro.getVariables());
+        String graficaBase64 = png.length > 0 ? Base64.getEncoder().encodeToString(png) : null;
+        return transformarPdf(xml, "fop/templates/reporte-electrico.xsl", graficaBase64);
     }
 
-    //Motor de transformación excel a PDF
-    private byte[] transformarPdf(String xmlDatos, String rutaPlantilla) {
+    //Motor de transformación XSL-FO a PDF
+    private byte[] transformarPdf(String xmlDatos, String rutaPlantilla, String graficaBase64) {
         try {
             ByteArrayOutputStream out = new ByteArrayOutputStream();
 
@@ -55,6 +60,9 @@ public class PdfReportService {
             String logoBase64 = cargarLogoBase64();
             if (logoBase64 != null) {
                 transformer.setParameter("logoBase64", logoBase64);
+            }
+            if (graficaBase64 != null) {
+                transformer.setParameter("graficaBase64", graficaBase64);
             }
 
             Source src = new StreamSource(new StringReader(xmlDatos));

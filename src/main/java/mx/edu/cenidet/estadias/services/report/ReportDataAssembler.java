@@ -1,6 +1,5 @@
 package mx.edu.cenidet.estadias.services.report;
 
-import lombok.RequiredArgsConstructor;
 import mx.edu.cenidet.estadias.dtos.reportes.ReportFilterDTO;
 import mx.edu.cenidet.estadias.modelos.lectura.BeanLectura;
 import mx.edu.cenidet.estadias.modelos.lecturaElectrica.BeanLecturaElectrica;
@@ -13,10 +12,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Component
-@RequiredArgsConstructor
 public class ReportDataAssembler {
-
-    private final ChartGeneratorService chartGeneratorService;
 
     // ── CLIMÁTICO ──────────────────────────────────────────────────────
     public String toXmlClimatico(List<BeanLectura> datos, ReportFilterDTO filtro) {
@@ -32,13 +28,6 @@ public class ReportDataAssembler {
         xml.append("  <variables>").append(varsStr).append("</variables>\n");
 
         appendResumenClimatico(xml, datos, filtro);
-
-        byte[] graficaPng = chartGeneratorService.generarGraficaClimatica(datos, filtro.getVariables());
-        if (graficaPng.length > 0) {
-            xml.append("  <grafica>")
-               .append(Base64.getEncoder().encodeToString(graficaPng))
-               .append("</grafica>\n");
-        }
 
         xml.append("  <lecturas>\n");
         for (BeanLectura l : datos) {
@@ -85,13 +74,6 @@ public class ReportDataAssembler {
         xml.append("  <variables>").append(varsStr).append("</variables>\n");
 
         appendResumenElectrico(xml, datos, filtro);
-
-        byte[] graficaPng = chartGeneratorService.generarGraficaElectrica(datos, filtro.getVariables());
-        if (graficaPng.length > 0) {
-            xml.append("  <grafica>")
-               .append(Base64.getEncoder().encodeToString(graficaPng))
-               .append("</grafica>\n");
-        }
 
         xml.append("  <lecturas>\n");
         for (BeanLecturaElectrica l : datos) {

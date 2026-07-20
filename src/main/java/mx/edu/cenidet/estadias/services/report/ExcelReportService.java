@@ -1,17 +1,15 @@
 package mx.edu.cenidet.estadias.services.report;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import mx.edu.cenidet.estadias.dtos.reportes.ReportFilterDTO;
 import mx.edu.cenidet.estadias.excepciones.ReportGenerationException;
 import mx.edu.cenidet.estadias.modelos.lectura.BeanLectura;
 import mx.edu.cenidet.estadias.modelos.lecturaElectrica.BeanLecturaElectrica;
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.ss.util.CellReference;
-import org.apache.poi.xssf.usermodel.XSSFCellStyle;
-import org.apache.poi.xssf.usermodel.XSSFColor;
-import org.apache.poi.xssf.usermodel.XSSFFont;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.apache.poi.xddf.usermodel.chart.*;
+import org.apache.poi.xssf.usermodel.*;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
@@ -21,7 +19,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class ExcelReportService {
 
@@ -33,52 +30,45 @@ public class ExcelReportService {
         "referencia: Estación AW-SHEF, Centro Nacional de Investigación y Desarrollo Tecnológico (CENIDET), " +
         "Cuernavaca, Morelos. Datos obtenidos del sistema de monitoreo AW-SHEF.";
 
-    // Layout: rows 0-2 = header institucional, row 3 = blank, row 4 = tabla header,
-    //         rows 5..N+4 = datos, blank, stats, blank, citación, blank, gráfica
+    // Layout: filas 0-2 = header institucional, fila 3 = separador,
+    //         fila 4 = encabezado tabla, filas 5..N = datos
     private static final int FILA_TABLA_HEADER = 4;
-    private static final int FILA_DATOS_INICIO = 5;   // Excel 1-indexed
-
-    private final ChartGeneratorService chartGeneratorService;
+    private static final int FILA_DATOS_INICIO = 5;
 
     // ── CLIMÁTICO ─────────────────────────────────────────────────────
     public byte[] generarReporteClimatico(List<BeanLectura> datos, ReportFilterDTO filtro) {
         try (XSSFWorkbook wb = new XSSFWorkbook();
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 
-            Sheet hoja = wb.createSheet("Variables Climáticas");
+            XSSFSheet hoja = wb.createSheet("Variables Climáticas");
             Estilos s = new Estilos(wb);
 
-            record Col(String clave, String cabecera) {}
+            record Col(String clave, String label, String unidad) {}
             List<Col> todasCols = List.of(
-                new Col("TEMPERATURA", "Temperatura (°C)"),
-                new Col("VIENTO",      "Viento (m/s)"),
-                new Col("HUMEDAD",     "Humedad (%)"),
-                new Col("RADIACION",   "Radiación (W/m²)"),
-                new Col("PRESION",     "Presión (hPa)")
+                new Col("TEMPERATURA", "Temperatura", "°C"),
+                new Col("VIENTO",      "Viento",      "m/s"),
+                new Col("HUMEDAD",     "Humedad",     "%"),
+                new Col("RADIACION",   "Radiación",   "W/m²"),
+                new Col("PRESION",     "Presión",     "hPa")
             );
             List<Col> cols = todasCols.stream()
                 .filter(c -> filtro.incluirVariable(c.clave())).toList();
             int numCols = cols.size();
             int cenCol  = numCols + 1;
 
-            // ── Header institucional (filas 0–2) ──────────────────────
+            String[] cabs = cabeceras("Fecha/Hora",
+                cols.stream().map(c -> c.label() + " (" + c.unidad() + ")").toList());
+
             escribirHeader(hoja, s, "Reporte de Variables Climáticas",
-                           filtro.getInicio() + " — " + filtro.getFin(),
-                           null, cenCol);
-            embedLogoInstitucional(wb, hoja, numCols, cenCol);
-
-            // Fila 3: separador
+                           filtro.getInicio() + " — " + filtro.getFin(), null, cenCol);
+            embedLogo(wb, hoja, numCols, cenCol);
             hoja.createRow(3);
-
-            // Fila 4: encabezado tabla
-            String[] cabs = cabeceras("Fecha/Hora", cols.stream().map(Col::cabecera).toList());
             crearFila(hoja, FILA_TABLA_HEADER, cabs, s.encDatos);
 
-            // Filas 5..N+4: datos
-            int fila = FILA_TABLA_HEADER + 1;
+            int fila = FILA_DATOS_INICIO;
             for (BeanLectura l : datos) {
                 Row row = hoja.createRow(fila);
-                CellStyle ds = ((fila - (FILA_TABLA_HEADER + 1)) % 2 == 1) ? s.datoAlt : null;
+                CellStyle ds = ((fila - FILA_DATOS_INICIO) % 2 == 1) ? s.datoAlt : null;
                 celda(row, 0, l.getFechaLectura().toString(), ds);
                 int col = 1;
                 for (Col c : cols) {
@@ -94,26 +84,25 @@ public class ExcelReportService {
                 }
                 fila++;
             }
-            int ultimaFila = fila; // = Excel 1-based row number of last data row
+            int ultimaFila = fila;
 
-            hoja.createRow(fila++); // separador
-
-            // Estadísticas
-            fila = escribirEstadisticas(hoja, s, filtro, cabs, numCols, FILA_DATOS_INICIO, ultimaFila, fila);
-
-            // Citación
+            hoja.createRow(fila++);
+            fila = escribirEstadisticas(hoja, s, filtro, cabs, numCols,
+                                        FILA_DATOS_INICIO, ultimaFila, fila);
             hoja.createRow(fila++);
             Row rowCita = hoja.createRow(fila++);
             celda(rowCita, 0, CITACION, s.citacion);
 
-            // Autosize + impresión
             for (int i = 0; i <= cenCol; i++) hoja.autoSizeColumn(i);
             configurarImpresion(hoja);
 
-            // Gráfica
+            // Gráficas nativas (una por variable activa)
             hoja.createRow(fila++);
-            byte[] png = chartGeneratorService.generarGraficaClimatica(datos, filtro.getVariables());
-            if (png.length > 0) embedImagen(wb, hoja, png, fila, numCols);
+            List<ColChart> colsChart = new ArrayList<>();
+            for (int i = 0; i < cols.size(); i++) {
+                colsChart.add(new ColChart(cols.get(i).label(), cols.get(i).unidad(), i + 1));
+            }
+            agregarGraficasNativas(hoja, colsChart, FILA_DATOS_INICIO, ultimaFila - 1, fila);
 
             wb.write(out);
             log.info("Excel climático: {} filas, {} columnas", datos.size(), numCols);
@@ -129,36 +118,36 @@ public class ExcelReportService {
         try (XSSFWorkbook wb = new XSSFWorkbook();
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 
-            Sheet hoja = wb.createSheet("Variables Eléctricas - " + filtro.getFuente());
+            XSSFSheet hoja = wb.createSheet("Variables Eléctricas - " + filtro.getFuente());
             Estilos s = new Estilos(wb);
 
-            record Col(String clave, String cabecera) {}
+            record Col(String clave, String label, String unidad) {}
             List<Col> todasCols = List.of(
-                new Col("VOLTAJE",   "Voltaje (V)"),
-                new Col("CORRIENTE", "Corriente (A)"),
-                new Col("POTENCIA",  "Potencia (W)"),
-                new Col("VOC",       "Voc (V)"),
-                new Col("ENERGIA",   "Energía (Wh)")
+                new Col("VOLTAJE",   "Voltaje",   "V"),
+                new Col("CORRIENTE", "Corriente", "A"),
+                new Col("POTENCIA",  "Potencia",  "W"),
+                new Col("VOC",       "Voc",       "V"),
+                new Col("ENERGIA",   "Energía",   "Wh")
             );
             List<Col> cols = todasCols.stream()
                 .filter(c -> filtro.incluirVariable(c.clave())).toList();
             int numCols = cols.size();
             int cenCol  = numCols + 1;
 
+            String[] cabs = cabeceras("Fecha/Hora",
+                cols.stream().map(c -> c.label() + " (" + c.unidad() + ")").toList());
+
             escribirHeader(hoja, s, "Reporte de Variables Eléctricas · " + filtro.getFuente(),
                            filtro.getInicio() + " — " + filtro.getFin(),
                            "Fuente: " + filtro.getFuente(), cenCol);
-            embedLogoInstitucional(wb, hoja, numCols, cenCol);
-
+            embedLogo(wb, hoja, numCols, cenCol);
             hoja.createRow(3);
-
-            String[] cabs = cabeceras("Fecha/Hora", cols.stream().map(Col::cabecera).toList());
             crearFila(hoja, FILA_TABLA_HEADER, cabs, s.encDatos);
 
-            int fila = FILA_TABLA_HEADER + 1;
+            int fila = FILA_DATOS_INICIO;
             for (BeanLecturaElectrica l : datos) {
                 Row row = hoja.createRow(fila);
-                CellStyle ds = ((fila - (FILA_TABLA_HEADER + 1)) % 2 == 1) ? s.datoAlt : null;
+                CellStyle ds = ((fila - FILA_DATOS_INICIO) % 2 == 1) ? s.datoAlt : null;
                 celda(row, 0, l.getFechaLectura().toString(), ds);
                 int col = 1;
                 for (Col c : cols) {
@@ -177,9 +166,8 @@ public class ExcelReportService {
             int ultimaFila = fila;
 
             hoja.createRow(fila++);
-
-            fila = escribirEstadisticas(hoja, s, filtro, cabs, numCols, FILA_DATOS_INICIO, ultimaFila, fila);
-
+            fila = escribirEstadisticas(hoja, s, filtro, cabs, numCols,
+                                        FILA_DATOS_INICIO, ultimaFila, fila);
             hoja.createRow(fila++);
             Row rowCita = hoja.createRow(fila++);
             celda(rowCita, 0, CITACION, s.citacion);
@@ -188,8 +176,11 @@ public class ExcelReportService {
             configurarImpresion(hoja);
 
             hoja.createRow(fila++);
-            byte[] png = chartGeneratorService.generarGraficaElectrica(datos, filtro.getVariables());
-            if (png.length > 0) embedImagen(wb, hoja, png, fila, numCols);
+            List<ColChart> colsChart = new ArrayList<>();
+            for (int i = 0; i < cols.size(); i++) {
+                colsChart.add(new ColChart(cols.get(i).label(), cols.get(i).unidad(), i + 1));
+            }
+            agregarGraficasNativas(hoja, colsChart, FILA_DATOS_INICIO, ultimaFila - 1, fila);
 
             wb.write(out);
             log.info("Excel eléctrico: {} filas, {} columnas", datos.size(), numCols);
@@ -200,9 +191,54 @@ public class ExcelReportService {
         }
     }
 
+    // ── Gráficas nativas XDDF ─────────────────────────────────────────
+    private record ColChart(String label, String unidad, int colIndex) {}
+
+    private void agregarGraficasNativas(XSSFSheet hoja, List<ColChart> cols,
+                                         int filaInicioData, int filaFinData, int filaChart) {
+        if (cols.isEmpty() || filaInicioData > filaFinData) return;
+
+        XSSFDrawing drawing = (XSSFDrawing) hoja.createDrawingPatriarch();
+        final int CHART_HEIGHT = 15;
+        final int CHART_GAP    = 2;
+        final int CHART_WIDTH  = Math.max(cols.size() + 2, 6);
+
+        for (int i = 0; i < cols.size(); i++) {
+            ColChart vc = cols.get(i);
+            int startRow = filaChart + i * (CHART_HEIGHT + CHART_GAP);
+            int endRow   = startRow + CHART_HEIGHT;
+
+            XSSFClientAnchor anchor = drawing.createAnchor(0, 0, 0, 0, 0, startRow, CHART_WIDTH, endRow);
+            XSSFChart chart = drawing.createChart(anchor);
+            chart.setTitleText(vc.label() + " (" + vc.unidad() + ")");
+            chart.setTitleOverlay(false);
+
+            XDDFChartLegend legend = chart.getOrAddLegend();
+            legend.setPosition(LegendPosition.BOTTOM);
+
+            XDDFCategoryAxis bottomAxis = chart.createCategoryAxis(AxisPosition.BOTTOM);
+            XDDFValueAxis leftAxis = chart.createValueAxis(AxisPosition.LEFT);
+            leftAxis.setCrosses(AxisCrosses.AUTO_ZERO);
+
+            XDDFDataSource<String> dates = XDDFDataSourcesFactory.fromStringCellRange(
+                hoja, new CellRangeAddress(filaInicioData, filaFinData, 0, 0));
+            XDDFNumericalDataSource<Double> values = XDDFDataSourcesFactory.fromNumericCellRange(
+                hoja, new CellRangeAddress(filaInicioData, filaFinData, vc.colIndex(), vc.colIndex()));
+
+            XDDFLineChartData lineData = (XDDFLineChartData) chart.createData(
+                ChartTypes.LINE, bottomAxis, leftAxis);
+            XDDFLineChartData.Series series = (XDDFLineChartData.Series) lineData.addSeries(dates, values);
+            series.setTitle(vc.label() + " (" + vc.unidad() + ")", null);
+            series.setSmooth(false);
+            series.setMarkerStyle(MarkerStyle.NONE);
+
+            chart.plot(lineData);
+        }
+    }
+
     // ── Helpers ────────────────────────────────────────────────────────
 
-    private void escribirHeader(Sheet hoja, Estilos s, String titulo, String periodo,
+    private void escribirHeader(XSSFSheet hoja, Estilos s, String titulo, String periodo,
                                  Object fuenteExtra, int cenCol) {
         Row r0 = hoja.createRow(0);
         celda(r0, 0, titulo, s.titulo);
@@ -217,7 +253,7 @@ public class ExcelReportService {
         celda(r2, cenCol, CENIDET_LUGAR, s.periodo);
     }
 
-    private int escribirEstadisticas(Sheet hoja, Estilos s, ReportFilterDTO filtro,
+    private int escribirEstadisticas(XSSFSheet hoja, Estilos s, ReportFilterDTO filtro,
                                       String[] cabs, int numCols,
                                       int filaDataInicio, int ultimaFila, int fila) {
         List<String[]> resumen = buildResumen(filtro, 2, filaDataInicio, ultimaFila, numCols);
@@ -267,15 +303,6 @@ public class ExcelReportService {
         return result;
     }
 
-    private void embedImagen(XSSFWorkbook wb, Sheet hoja, byte[] png, int filaInicio, int numCols) {
-        int picIdx = wb.addPicture(png, Workbook.PICTURE_TYPE_PNG);
-        Drawing<?> drawing = hoja.createDrawingPatriarch();
-        ClientAnchor anchor = wb.getCreationHelper().createClientAnchor();
-        anchor.setCol1(0); anchor.setRow1(filaInicio);
-        anchor.setCol2(Math.min(numCols + 1, 8)); anchor.setRow2(filaInicio + 28);
-        drawing.createPicture(anchor, picIdx);
-    }
-
     private void configurarImpresion(Sheet hoja) {
         PrintSetup ps = hoja.getPrintSetup();
         ps.setFitWidth((short) 1);
@@ -312,7 +339,7 @@ public class ExcelReportService {
         if (estilo != null) cell.setCellStyle(estilo);
     }
 
-    private void embedLogoInstitucional(XSSFWorkbook wb, Sheet hoja, int numCols, int cenCol) {
+    private void embedLogo(XSSFWorkbook wb, Sheet hoja, int numCols, int cenCol) {
         try {
             byte[] logoBytes = new ClassPathResource("fop/templates/Logo_cenidet.png")
                     .getInputStream().readAllBytes();
@@ -323,11 +350,11 @@ public class ExcelReportService {
             anchor.setCol2(cenCol + 1);              anchor.setRow2(3);
             drawing.createPicture(anchor, picIdx);
         } catch (Exception e) {
-            log.debug("Logo CENIDET no incrustado en Excel, se usa texto: {}", e.getMessage());
+            log.debug("Logo CENIDET no incrustado en Excel: {}", e.getMessage());
         }
     }
 
-    // ── Inner class para agrupar estilos ──────────────────────────────
+    // ── Estilos ────────────────────────────────────────────────────────
     private static class Estilos {
         final XSSFCellStyle titulo;
         final XSSFCellStyle cenidet;
@@ -340,7 +367,6 @@ public class ExcelReportService {
         final XSSFCellStyle citacion;
 
         Estilos(XSSFWorkbook wb) {
-            // Azul oscuro institucional
             byte[] azul   = {(byte)0x00, (byte)0x3B, (byte)0x8E};
             byte[] gris   = {(byte)0x55, (byte)0x55, (byte)0x55};
             byte[] blanco = {(byte)0xFF, (byte)0xFF, (byte)0xFF};
@@ -348,14 +374,12 @@ public class ExcelReportService {
             byte[] verde  = {(byte)0x1B, (byte)0x5E, (byte)0x20};
             byte[] citCol = {(byte)0x88, (byte)0x88, (byte)0x88};
 
-            // Título
             titulo = wb.createCellStyle();
             XSSFFont ft = wb.createFont();
             ft.setBold(true); ft.setFontHeightInPoints((short) 14);
             ft.setColor(new XSSFColor(azul, null));
             titulo.setFont(ft);
 
-            // CENIDET (derecha)
             cenidet = wb.createCellStyle();
             XSSFFont fc = wb.createFont();
             fc.setBold(true); fc.setItalic(true); fc.setFontHeightInPoints((short) 11);
@@ -363,14 +387,12 @@ public class ExcelReportService {
             cenidet.setFont(fc);
             cenidet.setAlignment(HorizontalAlignment.RIGHT);
 
-            // Periodo / subtítulo
             periodo = wb.createCellStyle();
             XSSFFont fp = wb.createFont();
             fp.setFontHeightInPoints((short) 9);
             fp.setColor(new XSSFColor(gris, null));
             periodo.setFont(fp);
 
-            // Encabezado datos (fondo azul oscuro, texto blanco)
             encDatos = wb.createCellStyle();
             encDatos.setFillForegroundColor(new XSSFColor(azul, null));
             encDatos.setFillPattern(FillPatternType.SOLID_FOREGROUND);
@@ -379,12 +401,10 @@ public class ExcelReportService {
             fed.setBold(true); fed.setColor(new XSSFColor(blanco, null));
             encDatos.setFont(fed);
 
-            // Fila dato alternada (azul muy claro)
             datoAlt = wb.createCellStyle();
             datoAlt.setFillForegroundColor(new XSSFColor(azulCl, null));
             datoAlt.setFillPattern(FillPatternType.SOLID_FOREGROUND);
 
-            // Encabezado estadísticas (fondo verde oscuro, texto blanco)
             encStats = wb.createCellStyle();
             encStats.setFillForegroundColor(new XSSFColor(verde, null));
             encStats.setFillPattern(FillPatternType.SOLID_FOREGROUND);
@@ -392,19 +412,16 @@ public class ExcelReportService {
             fes.setBold(true); fes.setColor(new XSSFColor(blanco, null));
             encStats.setFont(fes);
 
-            // Fila resumen (amarillo)
             resumen = wb.createCellStyle();
             Font fr = wb.createFont(); fr.setBold(true); resumen.setFont(fr);
             resumen.setFillForegroundColor(IndexedColors.LIGHT_YELLOW.getIndex());
             resumen.setFillPattern(FillPatternType.SOLID_FOREGROUND);
 
-            // Fila moda (verde claro)
             moda = wb.createCellStyle();
             Font fm = wb.createFont(); fm.setBold(true); moda.setFont(fm);
             moda.setFillForegroundColor(IndexedColors.LIGHT_GREEN.getIndex());
             moda.setFillPattern(FillPatternType.SOLID_FOREGROUND);
 
-            // Citación (itálica, gris)
             citacion = wb.createCellStyle();
             XSSFFont fci = wb.createFont();
             fci.setItalic(true); fci.setFontHeightInPoints((short) 9);

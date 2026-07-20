@@ -2,6 +2,12 @@ spring:
   application:
     name: estadias
 
+  # Scripts SQL ejecutados al arrancar (después de que Hibernate actualiza el esquema)
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:db/views.sql
+
   # Base de datos
   datasource:
     url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:estadias}?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=America/Mexico_City
@@ -9,6 +15,7 @@ spring:
     password: ${DB_PASSWORD:}
 
   jpa:
+    defer-datasource-initialization: true
     hibernate:
       # "update" es comodo en desarrollo. En producción usar "validate"
       # y manejar el esquema con migraciones (Flyway/Liquibase).
@@ -39,6 +46,12 @@ spring:
 
 server:
   port: ${SERVER_PORT:8085}
+
+logging:
+  level:
+    org.apache.fop: WARN
+    org.apache.xmlgraphics: WARN
+    org.apache.batik: WARN
 
 # ────────────────────────────────────────────────────────────
 # JWT (JwtService)

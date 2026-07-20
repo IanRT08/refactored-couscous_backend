@@ -7,6 +7,8 @@
 
   <!-- Logo CENIDET en Base64, pasado desde Java; vacío → muestra texto de respaldo -->
   <xsl:param name="logoBase64"/>
+  <!-- Gráfica del periodo en Base64, pasada desde Java; vacío → no se muestra sección -->
+  <xsl:param name="graficaBase64"/>
 
   <xsl:template match="/reporte">
     <fo:root>
@@ -162,7 +164,7 @@
           </xsl:if>
 
           <!-- ── Gráfica del periodo ────────────────────────────────── -->
-          <xsl:if test="string-length(grafica) &gt; 0">
+          <xsl:if test="$graficaBase64 != ''">
             <fo:block space-before="14pt" font-size="10pt" font-weight="bold" color="#003B8E" space-after="6pt"
                       keep-with-next.within-page="always">
               Gráfica del Periodo
@@ -171,7 +173,7 @@
               <fo:external-graphic content-width="17cm" content-height="20cm" scaling="uniform">
                 <xsl:attribute name="src">
                   <xsl:text>url('data:image/png;base64,</xsl:text>
-                  <xsl:value-of select="grafica"/>
+                  <xsl:value-of select="$graficaBase64"/>
                   <xsl:text>')</xsl:text>
                 </xsl:attribute>
               </fo:external-graphic>
