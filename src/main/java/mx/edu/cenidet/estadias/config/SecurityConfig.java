@@ -1,5 +1,6 @@
 package mx.edu.cenidet.estadias.config;
 
+import mx.edu.cenidet.estadias.repositorios.usuario.UsuarioRepository;
 import mx.edu.cenidet.estadias.security.JwtAccessDeniedHandler;
 import mx.edu.cenidet.estadias.security.JwtAuthenticationEntryPoint;
 import mx.edu.cenidet.estadias.security.JwtAuthenticationFilter;
@@ -76,8 +77,9 @@ public class SecurityConfig {
 
     //JwtAuthenticationFilter
     @Bean
-    public JwtAuthenticationFilter jwtAuthenticationFilter(JwtService jwtService) {
-        return new JwtAuthenticationFilter(jwtService);
+    public JwtAuthenticationFilter jwtAuthenticationFilter(JwtService jwtService,
+                                                           UsuarioRepository usuarioRepository) {
+        return new JwtAuthenticationFilter(jwtService, usuarioRepository);
     }
 
     //SecurityFilterChain

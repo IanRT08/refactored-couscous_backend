@@ -23,6 +23,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ElectricReadingService {
 
+    private static final int MAX_PAGE_SIZE = 1000;
+
     private final LecturaElectricaRepository electricaRepository;
 
     //Última lectura de una fuente para el Dashboard
@@ -37,7 +39,7 @@ public class ElectricReadingService {
     //Histórico paginado para gráficas, de una fuente
     @Transactional(readOnly = true)
     public PageResponseDTO<ElectricReadingDTO> obtenerPorRango(TelemetryFilterDTO filtro, FuenteElectrica fuente) {
-        var pageable = PageRequest.of(filtro.getPage(), filtro.getSize(),
+        var pageable = PageRequest.of(filtro.getPage(), Math.min(filtro.getSize(), MAX_PAGE_SIZE),
                 Sort.by("fechaLectura").ascending());
         return PageResponseDTO.of(
                 electricaRepository.findByFuenteAndFechaLecturaBetween(

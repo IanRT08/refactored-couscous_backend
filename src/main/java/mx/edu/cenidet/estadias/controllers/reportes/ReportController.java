@@ -25,12 +25,17 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/reportes")
 @RequiredArgsConstructor
 @PreAuthorize("isAuthenticated()")
 public class ReportController {
+
+    private static final Set<String> VARS_CLIMATICAS     = Set.of("TEMPERATURA", "VIENTO", "HUMEDAD", "RADIACION", "PRESION");
+    private static final Set<String> VARS_ELECTRICAS     = Set.of("VOLTAJE", "CORRIENTE", "POTENCIA", "VOC", "ENERGIA");
+    private static final Set<String> ESTADISTICAS_VALIDAS = Set.of("PROMEDIO", "MAXIMO", "MINIMO", "MODA");
 
     private final ClimateReadingService climateReadingService;
     private final ElectricReadingService electricReadingService;
@@ -67,6 +72,14 @@ public class ReportController {
             throw new BusinessRuleException(
                     "ACCESO RESTRINGIDO. Lo sentimos, pero actualmente no cuentas con el permiso "
                             + "para descargar reportes. Necesitas solicitarlo.");
+        }
+
+        Set<String> varsValidas = TipoReporte.CLIMATICO.equals(tipo) ? VARS_CLIMATICAS : VARS_ELECTRICAS;
+        if (variables != null && variables.stream().anyMatch(v -> !varsValidas.contains(v))) {
+            throw new BusinessRuleException("Variable no válida. Valores permitidos: " + varsValidas);
+        }
+        if (estadisticas != null && estadisticas.stream().anyMatch(e -> !ESTADISTICAS_VALIDAS.contains(e))) {
+            throw new BusinessRuleException("Estadística no válida. Valores permitidos: " + ESTADISTICAS_VALIDAS);
         }
 
         ReportFilterDTO filtro = new ReportFilterDTO(inicio, fin, tipo, formato, fuente);

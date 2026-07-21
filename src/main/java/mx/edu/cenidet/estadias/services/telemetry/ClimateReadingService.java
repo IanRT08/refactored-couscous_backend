@@ -22,6 +22,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ClimateReadingService {
 
+    private static final int MAX_PAGE_SIZE = 1000;
+
     private final LecturaRepository lecturaRepository;
 
     //Última lectura para el Dashboard
@@ -36,7 +38,7 @@ public class ClimateReadingService {
     //Histórico paginado para gráficas
     @Transactional(readOnly = true)
     public PageResponseDTO<ClimateReadingDTO> obtenerPorRango(TelemetryFilterDTO filtro) {
-        var pageable = PageRequest.of(filtro.getPage(), filtro.getSize(),
+        var pageable = PageRequest.of(filtro.getPage(), Math.min(filtro.getSize(), MAX_PAGE_SIZE),
                 Sort.by("fechaLectura").ascending());
         return PageResponseDTO.of(
                 lecturaRepository.findByFechaLecturaBetween(

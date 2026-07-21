@@ -77,6 +77,9 @@ public class UserService {
             if (fotoBytes.length > MAX_FOTO_BYTES) {
                 throw new BusinessRuleException("Foto muy pesada, por favor elija otra");
             }
+            if (!esImagenValida(fotoBytes)) {
+                throw new BusinessRuleException("El archivo debe ser una imagen en formato PNG o JPEG.");
+            }
             usuario.setFotoPerfil(fotoBytes);
         }
 
@@ -156,5 +159,13 @@ public class UserService {
     private String encodeBase64(byte[] data) {
         if (data == null || data.length == 0) return null;
         return Base64.getEncoder().encodeToString(data);
+    }
+
+    private static boolean esImagenValida(byte[] bytes) {
+        if (bytes.length < 4) return false;
+        // PNG: 89 50 4E 47
+        if (bytes[0] == (byte)0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47) return true;
+        // JPEG: FF D8 FF
+        return bytes[0] == (byte)0xFF && bytes[1] == (byte)0xD8 && bytes[2] == (byte)0xFF;
     }
 }

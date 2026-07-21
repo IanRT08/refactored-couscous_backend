@@ -4,6 +4,8 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import mx.edu.cenidet.estadias.modelos.usuario.EstadoUsuario;
+import mx.edu.cenidet.estadias.repositorios.usuario.UsuarioRepository;
 import mx.edu.cenidet.estadias.services.auth.JwtService;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -18,9 +20,11 @@ import java.util.List;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
+    private final UsuarioRepository usuarioRepository;
 
-    public JwtAuthenticationFilter(JwtService jwtService) {
+    public JwtAuthenticationFilter(JwtService jwtService, UsuarioRepository usuarioRepository) {
         this.jwtService = jwtService;
+        this.usuarioRepository = usuarioRepository;
     }
 
     @Override
@@ -50,6 +54,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         //El JWT fue generado con subject = nombreUsuario en AuthService.autenticar()
         String nombreUsuario = jwtService.extraerUsername(jwt);
         if (nombreUsuario == null || nombreUsuario.isBlank()) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        //3b. Verificar estado en BD: tokens de cuentas bloqueadas/inactivas quedan revocados.
+        //Consulta solo la columna estado (no carga el BLOB de foto) para mantener el overhead bajo.
+        boolean activo = usuarioRepository.findEstadoByNombreUsuario(nombreUsuario)
+                .map(EstadoUsuario.ACTIVO::equals)
+                .orElse(false);
+        if (!activo) {
             filterChain.doFilter(request, response);
             return;
         }
