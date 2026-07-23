@@ -41,6 +41,12 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponseDTO.ok("Si el correo está registrado, recibirás un código en los próximos minutos."));
     }
 
+    @PostMapping("/verify-reset-code")
+    public ResponseEntity<ApiResponseDTO<Void>> verificarCodigoRecuperacion(@Valid @RequestBody VerifyTokenRequestDTO dto) {
+        authService.verificarCodigoRecuperacion(dto);
+        return ResponseEntity.ok(ApiResponseDTO.ok("Código válido."));
+    }
+
     @PostMapping("/reset-password")
     public ResponseEntity<ApiResponseDTO<Void>> resetearPassword(@Valid @RequestBody ResetPasswordRequestDTO dto) {
         authService.resetearPassword(dto);

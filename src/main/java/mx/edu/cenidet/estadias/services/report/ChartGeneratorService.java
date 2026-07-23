@@ -161,7 +161,7 @@ public class ChartGeneratorService {
             ChartUtils.writeChartAsPNG(out, chart, width, height);
             return out.toByteArray();
         } catch (Exception e) {
-            log.warn("Error generando gráfica PNG: {}", e.getMessage());
+            log.error("Error generando gráfica PNG", e);
             return new byte[0];
         }
     }

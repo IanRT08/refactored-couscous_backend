@@ -7,12 +7,15 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Component
 public class ReportDataAssembler {
+
+    private static final DateTimeFormatter FMT_FECHA = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
     // ── CLIMÁTICO ──────────────────────────────────────────────────────
     public String toXmlClimatico(List<BeanLectura> datos, ReportFilterDTO filtro) {
@@ -31,7 +34,7 @@ public class ReportDataAssembler {
 
         xml.append("  <lecturas>\n");
         for (BeanLectura l : datos) {
-            xml.append("    <lectura fecha=\"").append(l.getFechaLectura()).append("\">\n");
+            xml.append("    <lectura fecha=\"").append(l.getFechaLectura().format(FMT_FECHA)).append("\">\n");
             xml.append("      <temperatura>").append(fmt(l.getTemperatura())).append("</temperatura>\n");
             xml.append("      <viento>").append(fmt(l.getViento())).append("</viento>\n");
             xml.append("      <humedad>").append(fmt(l.getHumedad())).append("</humedad>\n");
@@ -77,7 +80,7 @@ public class ReportDataAssembler {
 
         xml.append("  <lecturas>\n");
         for (BeanLecturaElectrica l : datos) {
-            xml.append("    <lectura fecha=\"").append(l.getFechaLectura()).append("\">\n");
+            xml.append("    <lectura fecha=\"").append(l.getFechaLectura().format(FMT_FECHA)).append("\">\n");
             xml.append("      <voltaje>").append(fmt(l.getVoltaje())).append("</voltaje>\n");
             xml.append("      <corriente>").append(fmt(l.getCorriente())).append("</corriente>\n");
             xml.append("      <potencia>").append(fmt(l.getPotencia())).append("</potencia>\n");

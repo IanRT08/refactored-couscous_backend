@@ -70,6 +70,16 @@ public class TokenService {
         return token;
     }
 
+    // Validar sin consumir — usado para verificar el código de recuperación antes del reseteo
+    public void validarSinConsumir(Long idUsuario, Integer codigoIngresado, TipoToken tipo) {
+        BeanToken token = tokenRepository.findTokenVigente(idUsuario, tipo, LocalDateTime.now())
+                .orElseThrow(() -> new BusinessRuleException(
+                        "El código es inválido o ha expirado. Solicita uno nuevo."));
+        if (!token.getCodigo().equals(codigoIngresado)) {
+            throw new BusinessRuleException("El código ingresado es incorrecto.");
+        }
+    }
+
     //Validar y consumir token
     public void validarYConsumir(Long idUsuario, Integer codigoIngresado, TipoToken tipo) {
         BeanToken token = tokenRepository.findTokenVigente(idUsuario, tipo, LocalDateTime.now())

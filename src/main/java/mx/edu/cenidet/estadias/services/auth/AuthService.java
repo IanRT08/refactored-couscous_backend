@@ -206,6 +206,13 @@ public class AuthService implements UserDetailsService {
         );
     }
 
+    @Transactional(readOnly = true)
+    public void verificarCodigoRecuperacion(VerifyTokenRequestDTO dto) {
+        BeanUsuario usuario = usuarioRepository.findByCorreo(dto.getCorreo())
+                .orElseThrow(() -> new BusinessRuleException("Correo no registrado."));
+        tokenService.validarSinConsumir(usuario.getIdUsuario(), dto.getCodigo(), TipoToken.RECUPERACION);
+    }
+
     @Transactional
     public void resetearPassword(ResetPasswordRequestDTO dto) {
         BeanUsuario usuario = usuarioRepository.findByCorreo(dto.getCorreo())

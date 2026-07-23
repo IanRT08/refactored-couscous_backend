@@ -15,12 +15,15 @@ import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
 @Service
 @Slf4j
 public class ExcelReportService {
+
+    private static final DateTimeFormatter FMT_FECHA = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
     private static final String CENIDET_SIGLAS = "CENIDET";
     private static final String CENIDET_NOMBRE = "Centro Nacional de Investigación y Desarrollo Tecnológico";
@@ -69,7 +72,7 @@ public class ExcelReportService {
             for (BeanLectura l : datos) {
                 Row row = hoja.createRow(fila);
                 CellStyle ds = ((fila - FILA_DATOS_INICIO) % 2 == 1) ? s.datoAlt : null;
-                celda(row, 0, l.getFechaLectura().toString(), ds);
+                celda(row, 0, l.getFechaLectura().format(FMT_FECHA), ds);
                 int col = 1;
                 for (Col c : cols) {
                     Float v = switch (c.clave()) {
@@ -148,7 +151,7 @@ public class ExcelReportService {
             for (BeanLecturaElectrica l : datos) {
                 Row row = hoja.createRow(fila);
                 CellStyle ds = ((fila - FILA_DATOS_INICIO) % 2 == 1) ? s.datoAlt : null;
-                celda(row, 0, l.getFechaLectura().toString(), ds);
+                celda(row, 0, l.getFechaLectura().format(FMT_FECHA), ds);
                 int col = 1;
                 for (Col c : cols) {
                     Float v = switch (c.clave()) {
@@ -199,9 +202,9 @@ public class ExcelReportService {
         if (cols.isEmpty() || filaInicioData > filaFinData) return;
 
         XSSFDrawing drawing = (XSSFDrawing) hoja.createDrawingPatriarch();
-        final int CHART_HEIGHT = 15;
+        final int CHART_HEIGHT = 16;
         final int CHART_GAP    = 2;
-        final int CHART_WIDTH  = Math.max(cols.size() + 2, 6);
+        final int CHART_WIDTH  = 10;
 
         for (int i = 0; i < cols.size(); i++) {
             ColChart vc = cols.get(i);
@@ -225,14 +228,13 @@ public class ExcelReportService {
             XDDFNumericalDataSource<Double> values = XDDFDataSourcesFactory.fromNumericCellRange(
                 hoja, new CellRangeAddress(filaInicioData, filaFinData, vc.colIndex(), vc.colIndex()));
 
-            XDDFLineChartData lineData = (XDDFLineChartData) chart.createData(
-                ChartTypes.LINE, bottomAxis, leftAxis);
-            XDDFLineChartData.Series series = (XDDFLineChartData.Series) lineData.addSeries(dates, values);
+            XDDFBarChartData barData = (XDDFBarChartData) chart.createData(
+                ChartTypes.BAR, bottomAxis, leftAxis);
+            barData.setBarDirection(BarDirection.COL);
+            XDDFBarChartData.Series series = (XDDFBarChartData.Series) barData.addSeries(dates, values);
             series.setTitle(vc.label() + " (" + vc.unidad() + ")", null);
-            series.setSmooth(false);
-            series.setMarkerStyle(MarkerStyle.NONE);
 
-            chart.plot(lineData);
+            chart.plot(barData);
         }
     }
 
