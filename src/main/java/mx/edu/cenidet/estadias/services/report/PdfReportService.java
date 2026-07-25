@@ -17,7 +17,8 @@ import javax.xml.transform.sax.SAXResult;
 import javax.xml.transform.stream.StreamSource;
 import java.io.ByteArrayOutputStream;
 import java.io.StringReader;
-import java.util.Base64;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 
 @Service
@@ -33,20 +34,20 @@ public class PdfReportService {
     public byte[] generarReporteClimatico(List<BeanLectura> datos, ReportFilterDTO filtro) {
         String xml = assembler.toXmlClimatico(datos, filtro);
         byte[] png = chartGeneratorService.generarGraficaClimatica(datos, filtro.getVariables());
-        String graficaBase64 = png.length > 0 ? Base64.getEncoder().encodeToString(png) : null;
-        return transformarPdf(xml, "fop/templates/reporte-climatico.xsl", graficaBase64);
+        return transformarPdf(xml, "fop/templates/reporte-climatico.xsl", png.length > 0 ? png : null);
     }
 
     //Reporte PDF Eléctrico
     public byte[] generarReporteElectrico(List<BeanLecturaElectrica> datos, ReportFilterDTO filtro) {
         String xml = assembler.toXmlElectrico(datos, filtro);
         byte[] png = chartGeneratorService.generarGraficaElectrica(datos, filtro.getVariables());
-        String graficaBase64 = png.length > 0 ? Base64.getEncoder().encodeToString(png) : null;
-        return transformarPdf(xml, "fop/templates/reporte-electrico.xsl", graficaBase64);
+        return transformarPdf(xml, "fop/templates/reporte-electrico.xsl", png.length > 0 ? png : null);
     }
 
     //Motor de transformación XSL-FO a PDF
-    private byte[] transformarPdf(String xmlDatos, String rutaPlantilla, String graficaBase64) {
+    private byte[] transformarPdf(String xmlDatos, String rutaPlantilla, byte[] graficaPng) {
+        Path tempLogo  = null;
+        Path tempChart = null;
         try {
             ByteArrayOutputStream out = new ByteArrayOutputStream();
 
@@ -57,12 +58,19 @@ public class PdfReportService {
             Transformer transformer =
                     TransformerFactory.newInstance().newTransformer(plantilla);
 
-            String logoBase64 = cargarLogoBase64();
-            if (logoBase64 != null) {
-                transformer.setParameter("logoBase64", logoBase64);
+            // Logo → archivo temporal para que FOP lo cargue como file://
+            byte[] logoBytes = cargarLogoBytes();
+            if (logoBytes != null) {
+                tempLogo = Files.createTempFile("fop-logo-", ".png");
+                Files.write(tempLogo, logoBytes);
+                transformer.setParameter("logoUri", tempLogo.toUri().toString());
             }
-            if (graficaBase64 != null) {
-                transformer.setParameter("graficaBase64", graficaBase64);
+
+            // Gráfica → archivo temporal
+            if (graficaPng != null) {
+                tempChart = Files.createTempFile("fop-chart-", ".png");
+                Files.write(tempChart, graficaPng);
+                transformer.setParameter("graficaUri", tempChart.toUri().toString());
             }
 
             Source src = new StreamSource(new StringReader(xmlDatos));
@@ -74,17 +82,25 @@ public class PdfReportService {
 
         } catch (Exception e) {
             throw new ReportGenerationException("Error generando PDF: " + e.getMessage(), e);
+        } finally {
+            borrarTempFile(tempLogo);
+            borrarTempFile(tempChart);
         }
     }
 
-    private String cargarLogoBase64() {
+    private byte[] cargarLogoBytes() {
         try {
-            byte[] bytes = new ClassPathResource("fop/templates/Logo_cenidet.png")
+            return new ClassPathResource("fop/templates/Logo_cenidet.png")
                     .getInputStream().readAllBytes();
-            return Base64.getEncoder().encodeToString(bytes);
         } catch (Exception e) {
             log.warn("Logo CENIDET no disponible, se usará texto como respaldo: {}", e.getMessage());
             return null;
+        }
+    }
+
+    private void borrarTempFile(Path path) {
+        if (path != null) {
+            try { Files.deleteIfExists(path); } catch (Exception ignored) {}
         }
     }
 }
