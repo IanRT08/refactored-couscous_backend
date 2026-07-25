@@ -39,7 +39,7 @@ public class AuthService implements UserDetailsService {
     private final JwtService jwtService;
     private final PasswordEncoder passwordEncoder;
 
-    @Transactional
+    @Transactional(noRollbackFor = InvalidCredentialsException.class)
     public LoginResponseDTO autenticar(LoginRequestDTO dto) {
 
         //1. Resolver identificador (nombreUsuario o correo)
