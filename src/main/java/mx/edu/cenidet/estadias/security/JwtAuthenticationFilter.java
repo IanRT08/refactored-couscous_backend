@@ -59,10 +59,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         //3b. Verificar estado en BD: tokens de cuentas bloqueadas/inactivas quedan revocados.
-        //Consulta solo la columna estado (no carga el BLOB de foto) para mantener el overhead bajo.
-        boolean activo = usuarioRepository.findEstadoByNombreUsuario(nombreUsuario)
-                .map(EstadoUsuario.ACTIVO::equals)
-                .orElse(false);
+        //Se usa idUsuario (claim inmutable) en lugar de nombreUsuario para evitar 401 tras cambiar el nombre.
+        Long idUsuario = jwtService.extraerIdUsuario(jwt);
+        boolean activo = idUsuario != null
+                && usuarioRepository.findEstadoByIdUsuario(idUsuario)
+                       .map(EstadoUsuario.ACTIVO::equals)
+                       .orElse(false);
         if (!activo) {
             filterChain.doFilter(request, response);
             return;

@@ -50,6 +50,12 @@ public class JwtService {
         return (String) extraerClaims(token).get("rol");
     }
 
+    public Long extraerIdUsuario(String token) {
+        Object raw = extraerClaims(token).get("idUsuario");
+        if (raw instanceof Number) return ((Number) raw).longValue();
+        return null;
+    }
+
     public boolean esTokenValido(String token, UserDetails userDetails) {
         try {
             String username = extraerUsername(token);

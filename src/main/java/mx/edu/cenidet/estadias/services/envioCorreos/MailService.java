@@ -61,6 +61,16 @@ public class MailService {
         enviar(correo, "Tus credenciales de administrador — AW-SHEF", html);
     }
 
+    //Notificación de purga mensual del historial (enviada a todos los admins activos)
+    @Async
+    public void enviarPurgeHistorialAdmin(String correo, String nombre, int eliminados, String fechaCorte) {
+        String html = renderizar("purge-historial.html",
+                "{{nombre}}", nombre,
+                "{{eliminados}}", String.valueOf(eliminados),
+                "{{fechaCorte}}", fechaCorte);
+        enviar(correo, "Historial de acciones vaciado — AW-SHEF", html);
+    }
+
     //Resultado de solicitud de descarga
     @Async
     public void enviarResultadoSolicitud(String correo, String nombre,

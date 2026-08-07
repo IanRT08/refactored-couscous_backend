@@ -27,16 +27,16 @@ public interface UsuarioRepository extends JpaRepository <BeanUsuario, Long> {
     //Devuelve usuarios según estado
     Page<BeanUsuario> findByEstado(EstadoUsuario estado, Pageable pageable);
 
-    //Buscador
+    //Buscador (excluye cuentas de administrador)
     @Query("""
             SELECT u FROM BeanUsuario u
             WHERE (LOWER(u.nombreUsuario)   LIKE LOWER(CONCAT('%', :termino, '%'))
                OR  LOWER(u.correo)           LIKE LOWER(CONCAT('%', :termino, '%'))
                OR  LOWER(u.nombreCompleto)   LIKE LOWER(CONCAT('%', :termino, '%')))
               AND  (:estado IS NULL OR u.estado = :estado)
+              AND  NOT EXISTS (SELECT a FROM BeanAdministrador a WHERE a.usuario = u)
             ORDER BY u.fechaRegistro DESC
             """)
-
     Page<BeanUsuario> buscarPorTerminoYEstado(@Param("termino") String termino, @Param("estado")  EstadoUsuario estado, Pageable pageable);
 
     //Bloquear la cuenta 15 minutos
@@ -45,5 +45,9 @@ public interface UsuarioRepository extends JpaRepository <BeanUsuario, Long> {
     //Solo el estado (evita cargar el BLOB de foto en cada petición autenticada)
     @Query("SELECT u.estado FROM BeanUsuario u WHERE u.nombreUsuario = :nombreUsuario")
     Optional<EstadoUsuario> findEstadoByNombreUsuario(@Param("nombreUsuario") String nombreUsuario);
+
+    //Lookup por id inmutable — usado por JwtAuthenticationFilter tras cambio de nombreUsuario
+    @Query("SELECT u.estado FROM BeanUsuario u WHERE u.idUsuario = :idUsuario")
+    Optional<EstadoUsuario> findEstadoByIdUsuario(@Param("idUsuario") Long idUsuario);
 
 }

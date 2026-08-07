@@ -1,27 +1,38 @@
 package mx.edu.cenidet.estadias.services.HistorialAccion;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import mx.edu.cenidet.estadias.dtos.administrador.ActionHistorySummaryDTO;
 import mx.edu.cenidet.estadias.dtos.comunes.PageResponseDTO;
 import mx.edu.cenidet.estadias.excepciones.ResourceNotFoundException;
 import mx.edu.cenidet.estadias.modelos.HistorialAccion.BeanHistorialAccion;
+import mx.edu.cenidet.estadias.modelos.usuario.EstadoUsuario;
 import mx.edu.cenidet.estadias.repositorios.HistorialAccion.HistorialAccionRepository;
+import mx.edu.cenidet.estadias.repositorios.administrador.AdministradorRepository;
 import mx.edu.cenidet.estadias.repositorios.usuario.UsuarioRepository;
+import mx.edu.cenidet.estadias.services.envioCorreos.MailService;
 import org.springframework.data.domain.Pageable;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ActionHistoryService {
 
     private final HistorialAccionRepository historialAccionRepository;
     private final UsuarioRepository usuarioRepository;
+    private final AdministradorRepository administradorRepository;
+    private final MailService mailService;
 
     //Registrar una acción
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -63,6 +74,31 @@ public class ActionHistoryService {
                 historialAccionRepository.findByFechaAccionBetweenOrderByFechaAccionDesc(
                         inicio, fin, pageable).map(this::mapToDTO)
         );
+    }
+
+    //Purga mensual automática: elimina registros anteriores al primer día del mes actual
+    //y notifica por correo a todos los administradores activos
+    @Scheduled(cron = "0 0 2 1 * *", zone = "America/Mexico_City")
+    @Transactional
+    public void purgarHistorialMensual() {
+        LocalDateTime corte = LocalDate.now().withDayOfMonth(1).atStartOfDay();
+        long total = historialAccionRepository.countByFechaAccionBefore(corte);
+        if (total == 0) {
+            log.info("Purga mensual del historial: sin registros anteriores a {}", corte);
+            return;
+        }
+        int eliminados = historialAccionRepository.eliminarAnterioresA(corte);
+        String fechaCorte = corte.format(
+                DateTimeFormatter.ofPattern("d 'de' MMMM 'de' yyyy", new Locale("es", "MX")));
+        log.info("Purga mensual del historial: {} registros eliminados (anteriores al {})", eliminados, fechaCorte);
+        administradorRepository.findAllByOrderByUsuario_NombreUsuarioAsc()
+                .stream()
+                .filter(a -> EstadoUsuario.ACTIVO.equals(a.getUsuario().getEstado()))
+                .forEach(a -> mailService.enviarPurgeHistorialAdmin(
+                        a.getUsuario().getCorreo(),
+                        a.getUsuario().getNombreCompleto(),
+                        eliminados,
+                        fechaCorte));
     }
 
     private ActionHistorySummaryDTO mapToDTO(BeanHistorialAccion h) {
