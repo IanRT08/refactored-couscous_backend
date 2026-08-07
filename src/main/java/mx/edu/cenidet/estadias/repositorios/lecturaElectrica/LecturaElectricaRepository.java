@@ -85,27 +85,27 @@ public interface LecturaElectricaRepository extends JpaRepository<BeanLecturaEle
     //fuente se recibe como String (fuente.name()) para que el binding nativo
     //sea directo contra la columna VARCHAR, sin depender de cómo Hibernate
     //serialice un parámetro de tipo enum en consultas nativas.
-    @Query(value = "SELECT voltaje FROM LecturaElectrica " +
+    @Query(value = "SELECT voltaje FROM lectura_electrica " +
             "WHERE fuente = :fuente AND fecha_lectura BETWEEN :inicio AND :fin AND voltaje IS NOT NULL " +
             "GROUP BY voltaje ORDER BY COUNT(*) DESC, voltaje ASC LIMIT 1", nativeQuery = true)
     Optional<Float> modaVoltaje(@Param("fuente") String fuente, @Param("inicio") LocalDateTime inicio, @Param("fin") LocalDateTime fin);
 
-    @Query(value = "SELECT corriente FROM LecturaElectrica " +
+    @Query(value = "SELECT corriente FROM lectura_electrica " +
             "WHERE fuente = :fuente AND fecha_lectura BETWEEN :inicio AND :fin AND corriente IS NOT NULL " +
             "GROUP BY corriente ORDER BY COUNT(*) DESC, corriente ASC LIMIT 1", nativeQuery = true)
     Optional<Float> modaCorriente(@Param("fuente") String fuente, @Param("inicio") LocalDateTime inicio, @Param("fin") LocalDateTime fin);
 
-    @Query(value = "SELECT potencia FROM LecturaElectrica " +
+    @Query(value = "SELECT potencia FROM lectura_electrica " +
             "WHERE fuente = :fuente AND fecha_lectura BETWEEN :inicio AND :fin AND potencia IS NOT NULL " +
             "GROUP BY potencia ORDER BY COUNT(*) DESC, potencia ASC LIMIT 1", nativeQuery = true)
     Optional<Float> modaPotencia(@Param("fuente") String fuente, @Param("inicio") LocalDateTime inicio, @Param("fin") LocalDateTime fin);
 
-    @Query(value = "SELECT voc FROM LecturaElectrica " +
+    @Query(value = "SELECT voc FROM lectura_electrica " +
             "WHERE fuente = :fuente AND fecha_lectura BETWEEN :inicio AND :fin AND voc IS NOT NULL " +
             "GROUP BY voc ORDER BY COUNT(*) DESC, voc ASC LIMIT 1", nativeQuery = true)
     Optional<Float> modaVoc(@Param("fuente") String fuente, @Param("inicio") LocalDateTime inicio, @Param("fin") LocalDateTime fin);
 
-    @Query(value = "SELECT energia FROM LecturaElectrica " +
+    @Query(value = "SELECT energia FROM lectura_electrica " +
             "WHERE fuente = :fuente AND fecha_lectura BETWEEN :inicio AND :fin AND energia IS NOT NULL " +
             "GROUP BY energia ORDER BY COUNT(*) DESC, energia ASC LIMIT 1", nativeQuery = true)
     Optional<Float> modaEnergia(@Param("fuente") String fuente, @Param("inicio") LocalDateTime inicio, @Param("fin") LocalDateTime fin);
