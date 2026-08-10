@@ -11,7 +11,6 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -40,9 +39,6 @@ public interface UsuarioRepository extends JpaRepository <BeanUsuario, Long> {
             ORDER BY u.fechaRegistro DESC
             """)
     Page<BeanUsuario> buscarPorTerminoYEstado(@Param("termino") String termino, @Param("estado")  EstadoUsuario estado, Pageable pageable);
-
-    //Bloquear la cuenta 15 minutos
-    List<BeanUsuario> findByEstado(EstadoUsuario estado);
 
     //Solo el estado (evita cargar el BLOB de foto en cada petición autenticada)
     @Query("SELECT u.estado FROM BeanUsuario u WHERE u.nombreUsuario = :nombreUsuario")

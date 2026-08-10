@@ -11,23 +11,17 @@ import mx.edu.cenidet.estadias.modelos.token.TipoToken;
 import mx.edu.cenidet.estadias.repositorios.administrador.AdministradorRepository;
 import mx.edu.cenidet.estadias.repositorios.usuario.UsuarioRepository;
 import mx.edu.cenidet.estadias.services.HistorialAccion.ActionHistoryService;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class AuthService implements UserDetailsService {
+public class AuthService {
 
     private static final int MAX_INTENTOS     = 3;
     private static final int MINUTOS_BLOQUEO  = 15;
@@ -134,22 +128,6 @@ public class AuthService implements UserDetailsService {
                 nuevoUsuario.getCorreo(), nuevoUsuario.getNombreCompleto());
 
         log.info("Usuario registrado (pendiente de confirmación): {}", dto.getNombreUsuario());
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public UserDetails loadUserByUsername(String nombreUsuario) throws UsernameNotFoundException {
-        BeanUsuario usuario = usuarioRepository.findByNombreUsuario(nombreUsuario)
-                .orElseThrow(() -> new UsernameNotFoundException(
-                        "Usuario no encontrado: " + nombreUsuario));
-
-        String rol = determinarRol(usuario.getIdUsuario());
-
-        return new User(
-                usuario.getNombreUsuario(),
-                usuario.getContrasenia(),
-                List.of(new SimpleGrantedAuthority("ROLE_" + rol))
-        );
     }
 
     private void registrarIntentoFallido(BeanUsuario usuario) {

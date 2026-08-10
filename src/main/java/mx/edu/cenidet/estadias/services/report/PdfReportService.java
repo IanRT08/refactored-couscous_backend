@@ -33,14 +33,14 @@ public class PdfReportService {
     //Reporte PDF Climático
     public byte[] generarReporteClimatico(List<BeanLectura> datos, ReportFilterDTO filtro) {
         String xml = assembler.toXmlClimatico(datos, filtro);
-        byte[] png = chartGeneratorService.generarGraficaClimatica(datos, filtro.getVariables());
+        byte[] png = chartGeneratorService.generarGraficaClimatica(datos, filtro.getVariables(), filtro.getTipoGrafica());
         return transformarPdf(xml, "fop/templates/reporte-climatico.xsl", png.length > 0 ? png : null);
     }
 
     //Reporte PDF Eléctrico
     public byte[] generarReporteElectrico(List<BeanLecturaElectrica> datos, ReportFilterDTO filtro) {
         String xml = assembler.toXmlElectrico(datos, filtro);
-        byte[] png = chartGeneratorService.generarGraficaElectrica(datos, filtro.getVariables());
+        byte[] png = chartGeneratorService.generarGraficaElectrica(datos, filtro.getVariables(), filtro.getTipoGrafica());
         return transformarPdf(xml, "fop/templates/reporte-electrico.xsl", png.length > 0 ? png : null);
     }
 

@@ -37,6 +37,7 @@ public class ReportController {
     private static final Set<String> VARS_CLIMATICAS     = Set.of("TEMPERATURA", "VIENTO", "HUMEDAD", "RADIACION", "PRESION");
     private static final Set<String> VARS_ELECTRICAS     = Set.of("VOLTAJE", "CORRIENTE", "POTENCIA", "VOC", "ENERGIA");
     private static final Set<String> ESTADISTICAS_VALIDAS = Set.of("PROMEDIO", "MAXIMO", "MINIMO", "MODA");
+    private static final Set<String> TIPOS_GRAFICA_VALIDOS = Set.of("LINEA", "BARRA");
 
     private final ClimateReadingService climateReadingService;
     private final ElectricReadingService electricReadingService;
@@ -56,6 +57,7 @@ public class ReportController {
             @RequestParam(required = false) List<String> variables,
             // Filas de estadísticas (?estadisticas=PROMEDIO&estadisticas=MAXIMO …)
             @RequestParam(required = false) List<String> estadisticas,
+            @RequestParam(required = false, defaultValue = "LINEA") String tipoGrafica,
             HttpServletRequest request) {
 
         if (!inicio.isBefore(fin)) {
@@ -87,10 +89,14 @@ public class ReportController {
         if (estadisticas != null && estadisticas.stream().anyMatch(e -> !ESTADISTICAS_VALIDAS.contains(e))) {
             throw new BusinessRuleException("Estadística no válida. Valores permitidos: " + ESTADISTICAS_VALIDAS);
         }
+        if (!TIPOS_GRAFICA_VALIDOS.contains(tipoGrafica.toUpperCase())) {
+            throw new BusinessRuleException("Tipo de gráfica no válido. Valores permitidos: LINEA, BARRA");
+        }
 
         ReportFilterDTO filtro = new ReportFilterDTO(inicio, fin, tipo, formato, fuente);
         filtro.setVariables(variables);
         filtro.setEstadisticas(estadisticas);
+        filtro.setTipoGrafica(tipoGrafica.toUpperCase());
 
         byte[] reporte = generarReporte(filtro);
 

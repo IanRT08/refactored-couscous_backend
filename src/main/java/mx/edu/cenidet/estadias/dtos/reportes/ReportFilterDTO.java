@@ -42,6 +42,9 @@ public class ReportFilterDTO {
     // Valores válidos: PROMEDIO, MAXIMO, MINIMO, MODA
     private List<String> estadisticas;
 
+    // Tipo de gráfica para PDF: LINEA (default) o BARRA
+    private String tipoGrafica = "LINEA";
+
     // Constructor de compatibilidad (sin los nuevos campos opcionales)
     public ReportFilterDTO(LocalDateTime inicio, LocalDateTime fin,
                            TipoReporte tipo, FormatoReporte formato,

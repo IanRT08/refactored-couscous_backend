@@ -9,6 +9,7 @@ import org.jfree.chart.axis.DateAxis;
 import org.jfree.chart.axis.NumberAxis;
 import org.jfree.chart.plot.CombinedDomainXYPlot;
 import org.jfree.chart.plot.XYPlot;
+import org.jfree.chart.renderer.xy.XYBarRenderer;
 import org.jfree.chart.renderer.xy.XYLineAndShapeRenderer;
 import org.jfree.data.time.Minute;
 import org.jfree.data.time.TimeSeries;
@@ -32,7 +33,7 @@ public class ChartGeneratorService {
                                  Color color, Function<T, Float> getter) {}
 
     // ── Climático ─────────────────────────────────────────────────────
-    public byte[] generarGraficaClimatica(List<BeanLectura> datos, List<String> variables) {
+    public byte[] generarGraficaClimatica(List<BeanLectura> datos, List<String> variables, String tipoGrafica) {
         List<VarConfig<BeanLectura>> configs = List.of(
             new VarConfig<>("TEMPERATURA", "Temperatura", "°C",    new Color(224, 80,  80),  BeanLectura::getTemperatura),
             new VarConfig<>("VIENTO",      "Viento",      "m/s",   new Color(23,  102, 130), BeanLectura::getViento),
@@ -43,11 +44,11 @@ public class ChartGeneratorService {
         List<VarConfig<BeanLectura>> activas = configs.stream()
             .filter(c -> variables == null || variables.isEmpty() || variables.contains(c.clave()))
             .toList();
-        return renderizarClimatico(datos, activas);
+        return renderizarClimatico(datos, activas, tipoGrafica);
     }
 
     // ── Eléctrico ─────────────────────────────────────────────────────
-    public byte[] generarGraficaElectrica(List<BeanLecturaElectrica> datos, List<String> variables) {
+    public byte[] generarGraficaElectrica(List<BeanLecturaElectrica> datos, List<String> variables, String tipoGrafica) {
         List<VarConfig<BeanLecturaElectrica>> configs = List.of(
             new VarConfig<>("VOLTAJE",   "Voltaje",   "V",  new Color(23,  102, 130), BeanLecturaElectrica::getVoltaje),
             new VarConfig<>("CORRIENTE", "Corriente", "A",  new Color(224, 80,  80),  BeanLecturaElectrica::getCorriente),
@@ -58,13 +59,14 @@ public class ChartGeneratorService {
         List<VarConfig<BeanLecturaElectrica>> activas = configs.stream()
             .filter(c -> variables == null || variables.isEmpty() || variables.contains(c.clave()))
             .toList();
-        return renderizarElectrico(datos, activas);
+        return renderizarElectrico(datos, activas, tipoGrafica);
     }
 
     // ── Render genérico climático ──────────────────────────────────────
     private byte[] renderizarClimatico(List<BeanLectura> datos,
-                                       List<VarConfig<BeanLectura>> activas) {
+                                       List<VarConfig<BeanLectura>> activas, String tipoGrafica) {
         if (datos.isEmpty() || activas.isEmpty()) return new byte[0];
+        boolean esBarra = "BARRA".equalsIgnoreCase(tipoGrafica);
 
         DateAxis domainAxis = new DateAxis("Fecha/Hora");
         domainAxis.setDateFormatOverride(new SimpleDateFormat("dd/MM HH:mm"));
@@ -89,8 +91,8 @@ public class ChartGeneratorService {
             rangeAxis.setLabelFont(new Font("SansSerif", Font.PLAIN, 9));
             rangeAxis.setTickLabelFont(new Font("SansSerif", Font.PLAIN, 8));
 
-            XYLineAndShapeRenderer renderer = crearRenderer(vc.color(), datos.size());
-            XYPlot subplot = new XYPlot(new TimeSeriesCollection(ts), null, rangeAxis, renderer);
+            XYPlot subplot = new XYPlot(new TimeSeriesCollection(ts), null, rangeAxis,
+                    esBarra ? crearBarRenderer(vc.color()) : crearRenderer(vc.color(), datos.size()));
             estilizarSubplot(subplot, vc.color());
             combined.add(subplot, 1);
         }
@@ -101,8 +103,9 @@ public class ChartGeneratorService {
 
     // ── Render genérico eléctrico ──────────────────────────────────────
     private byte[] renderizarElectrico(List<BeanLecturaElectrica> datos,
-                                       List<VarConfig<BeanLecturaElectrica>> activas) {
+                                       List<VarConfig<BeanLecturaElectrica>> activas, String tipoGrafica) {
         if (datos.isEmpty() || activas.isEmpty()) return new byte[0];
+        boolean esBarra = "BARRA".equalsIgnoreCase(tipoGrafica);
 
         DateAxis domainAxis = new DateAxis("Fecha/Hora");
         domainAxis.setDateFormatOverride(new SimpleDateFormat("dd/MM HH:mm"));
@@ -126,8 +129,8 @@ public class ChartGeneratorService {
             rangeAxis.setLabelFont(new Font("SansSerif", Font.PLAIN, 9));
             rangeAxis.setTickLabelFont(new Font("SansSerif", Font.PLAIN, 8));
 
-            XYLineAndShapeRenderer renderer = crearRenderer(vc.color(), datos.size());
-            XYPlot subplot = new XYPlot(new TimeSeriesCollection(ts), null, rangeAxis, renderer);
+            XYPlot subplot = new XYPlot(new TimeSeriesCollection(ts), null, rangeAxis,
+                    esBarra ? crearBarRenderer(vc.color()) : crearRenderer(vc.color(), datos.size()));
             estilizarSubplot(subplot, vc.color());
             combined.add(subplot, 1);
         }
@@ -143,6 +146,15 @@ public class ChartGeneratorService {
         r.setSeriesPaint(0, color);
         r.setSeriesStroke(0, new BasicStroke(1.6f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
         if (mostrarPuntos) r.setSeriesShape(0, new Ellipse2D.Double(-2, -2, 4, 4));
+        return r;
+    }
+
+    private XYBarRenderer crearBarRenderer(Color color) {
+        XYBarRenderer r = new XYBarRenderer(0.15);
+        r.setSeriesPaint(0, color);
+        r.setShadowVisible(false);
+        r.setDrawBarOutline(false);
+        r.setUseYInterval(false);
         return r;
     }
 

@@ -81,7 +81,8 @@ public class AdminService {
         }
 
         //Solo el superadministrador puede cambiar el estado de OTROS administradores
-        if (administradorRepository.existsByUsuario_IdUsuario(idUsuario)) {
+        boolean esAdmin = administradorRepository.existsByUsuario_IdUsuario(idUsuario);
+        if (esAdmin) {
             verificarEsSuperAdmin(idAdmin);
         }
 
@@ -101,7 +102,7 @@ public class AdminService {
 
         log.info("Estado de usuario {} cambiado: {} → {}", usuario.getNombreUsuario(),
                 estadoAnterior, dto.getNuevoEstado());
-        return mapToUserSummaryDTO(usuario);
+        return mapToUserSummaryDTO(usuario, esAdmin);
     }
 
     @Transactional
@@ -161,12 +162,12 @@ public class AdminService {
 
     //Listar administradores
     @Transactional(readOnly = true)
-    public List<AdminSummaryDTO> listarAdministradores(Long idSuperAdmin) {
+    public PageResponseDTO<AdminSummaryDTO> listarAdministradores(Long idSuperAdmin, Pageable pageable) {
         verificarEsSuperAdmin(idSuperAdmin);
-        return administradorRepository.findAllByOrderByUsuario_NombreUsuarioAsc()
-                .stream()
-                .map(a -> mapToAdminSummaryDTO(a, a.getUsuario()))
-                .collect(Collectors.toList());
+        return PageResponseDTO.of(
+                administradorRepository.findAllByOrderByUsuario_NombreUsuarioAsc(pageable)
+                        .map(a -> mapToAdminSummaryDTO(a, a.getUsuario()))
+        );
     }
 
     //Editar permiso de descarga de un usuario
@@ -262,8 +263,7 @@ public class AdminService {
                 .collect(Collectors.joining());
     }
 
-    private UserSummaryDTO mapToUserSummaryDTO(BeanUsuario u) {
-        boolean esAdmin = administradorRepository.existsByUsuario_IdUsuario(u.getIdUsuario());
+    private UserSummaryDTO mapToUserSummaryDTO(BeanUsuario u, boolean esAdmin) {
         String tipo = null;
         if (esAdmin) {
             tipo = administradorRepository.findByUsuario_IdUsuario(u.getIdUsuario())

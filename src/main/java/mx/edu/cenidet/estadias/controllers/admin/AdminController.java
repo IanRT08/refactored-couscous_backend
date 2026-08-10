@@ -20,8 +20,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
-import java.util.List;
-
 @RestController
 @RequestMapping("/api/admin")
 @RequiredArgsConstructor
@@ -74,10 +72,11 @@ public class AdminController {
     //Ver lista de admins
     @GetMapping("/administradores")
     @PreAuthorize("hasRole('SUPERADMINISTRADOR')")
-    public ResponseEntity<ApiResponseDTO<List<AdminSummaryDTO>>> listarAdministradores(
-            HttpServletRequest request) {
+    public ResponseEntity<ApiResponseDTO<PageResponseDTO<AdminSummaryDTO>>> listarAdministradores(
+            HttpServletRequest request,
+            @PageableDefault(size = 20) Pageable pageable) {
         Long idSuperAdmin = authUtils.getIdUsuarioActual(request);
-        return ResponseEntity.ok(ApiResponseDTO.ok("Administradores obtenidos.", adminService.listarAdministradores(idSuperAdmin)));
+        return ResponseEntity.ok(ApiResponseDTO.ok("Administradores obtenidos.", adminService.listarAdministradores(idSuperAdmin, pageable)));
     }
 
     //Crear nuevos admins
