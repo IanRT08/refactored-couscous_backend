@@ -5,10 +5,12 @@ import mx.edu.cenidet.estadias.modelos.usuario.EstadoUsuario;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -49,5 +51,18 @@ public interface UsuarioRepository extends JpaRepository <BeanUsuario, Long> {
     //Lookup por id inmutable — usado por JwtAuthenticationFilter tras cambio de nombreUsuario
     @Query("SELECT u.estado FROM BeanUsuario u WHERE u.idUsuario = :idUsuario")
     Optional<EstadoUsuario> findEstadoByIdUsuario(@Param("idUsuario") Long idUsuario);
+
+    // --- Crítico 1: actualizaciones atómicas para protección contra fuerza bruta ---
+
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE BeanUsuario u SET u.intentosFallidos = u.intentosFallidos + 1 WHERE u.idUsuario = :id")
+    void incrementarIntentosFallidos(@Param("id") Long id);
+
+    @Query("SELECT u.intentosFallidos FROM BeanUsuario u WHERE u.idUsuario = :id")
+    Integer leerIntentosFallidos(@Param("id") Long id);
+
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE BeanUsuario u SET u.estado = :estado, u.fechaBloqueo = :now WHERE u.idUsuario = :id")
+    void bloquearCuenta(@Param("id") Long id, @Param("estado") EstadoUsuario estado, @Param("now") LocalDateTime now);
 
 }

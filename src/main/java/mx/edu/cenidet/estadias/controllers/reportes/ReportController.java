@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Set;
 
@@ -60,6 +61,11 @@ public class ReportController {
         if (!inicio.isBefore(fin)) {
             throw new BusinessRuleException(
                     "La fecha de inicio debe ser anterior a la fecha de fin.");
+        }
+
+        if (ChronoUnit.MONTHS.between(inicio, fin) > 6) {
+            throw new BusinessRuleException(
+                    "El rango máximo permitido por reporte es de 6 meses.");
         }
 
         if (TipoReporte.ELECTRICO.equals(tipo) && fuente == null) {

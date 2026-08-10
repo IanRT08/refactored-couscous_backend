@@ -130,7 +130,7 @@ public class UserService {
         usuarioRepository.save(usuario);
         actionHistoryService.registrar(idUsuario, "CUENTA_DESACTIVADA",
                 "El usuario desactivó su propia cuenta");
-        log.info("Cuenta desactivada: {}", usuario.getNombreUsuario());
+        log.info("Cuenta desactivada: idUsuario={}", idUsuario);
     }
 
     private BeanUsuario buscarUsuarioPorId(Long idUsuario) {

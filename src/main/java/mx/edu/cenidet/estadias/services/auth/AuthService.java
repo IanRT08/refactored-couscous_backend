@@ -91,7 +91,7 @@ public class AuthService implements UserDetailsService {
         actionHistoryService.registrar(usuario.getIdUsuario(), "LOGIN_EXITOSO",
                 "Inicio de sesión desde el sistema");
 
-        log.info("Login exitoso: {} (rol: {})", usuario.getNombreUsuario(), rol);
+        log.info("Login exitoso: idUsuario={} (rol: {})", usuario.getIdUsuario(), rol);
 
         return LoginResponseDTO.builder()
                 .token(token)
@@ -153,21 +153,18 @@ public class AuthService implements UserDetailsService {
     }
 
     private void registrarIntentoFallido(BeanUsuario usuario) {
-        int intentos = usuario.getIntentosFallidos() + 1;
-        usuario.setIntentosFallidos(intentos);
+        usuarioRepository.incrementarIntentosFallidos(usuario.getIdUsuario());
+        int intentos = usuarioRepository.leerIntentosFallidos(usuario.getIdUsuario());
 
         if (intentos >= MAX_INTENTOS) {
-            usuario.setEstado(EstadoUsuario.BLOQUEADO);
-            usuario.setFechaBloqueo(LocalDateTime.now());
-            log.warn("Cuenta bloqueada por exceder {} intentos: {}", MAX_INTENTOS,
-                    usuario.getNombreUsuario());
+            usuarioRepository.bloquearCuenta(usuario.getIdUsuario(), EstadoUsuario.BLOQUEADO, LocalDateTime.now());
+            log.warn("Cuenta bloqueada por exceder {} intentos: idUsuario={}", MAX_INTENTOS, usuario.getIdUsuario());
             actionHistoryService.registrar(usuario.getIdUsuario(), "CUENTA_BLOQUEADA",
                     "Cuenta bloqueada por " + MAX_INTENTOS + " intentos fallidos");
         } else {
             actionHistoryService.registrar(usuario.getIdUsuario(), "LOGIN_FALLIDO",
                     "Intento fallido #" + intentos);
         }
-        usuarioRepository.save(usuario);
     }
 
     private void desbloquear(BeanUsuario usuario) {

@@ -18,6 +18,7 @@ import mx.edu.cenidet.estadias.modelos.usuario.EstadoUsuario;
 import mx.edu.cenidet.estadias.repositorios.administrador.AdministradorRepository;
 import mx.edu.cenidet.estadias.repositorios.permisoDescarga.PermisoDescargaRepository;
 import mx.edu.cenidet.estadias.repositorios.usuario.UsuarioRepository;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +27,7 @@ import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -46,10 +48,14 @@ public class AdminService {
             String termino, EstadoUsuario estado, Pageable pageable) {
 
         String t = (termino == null || termino.isBlank()) ? "" : termino.trim();
-        return PageResponseDTO.of(
-                usuarioRepository.buscarPorTerminoYEstado(t, estado, pageable)
-                        .map(this::mapToUserSummaryDTO)
-        );
+        Page<BeanUsuario> pagina = usuarioRepository.buscarPorTerminoYEstado(t, estado, pageable);
+
+        List<Long> ids = pagina.stream().map(BeanUsuario::getIdUsuario).toList();
+        Set<Long> conPermiso = ids.isEmpty() ? Set.of() :
+                permisoDescargaRepository.findUserIdsWithActivePermission(ids, EstadoPermiso.ACTIVO);
+
+        return PageResponseDTO.of(pagina.map(u ->
+                mapToListUserSummaryDTO(u, conPermiso.contains(u.getIdUsuario()))));
     }
 
     //Ver detalle de un usuario
@@ -274,6 +280,21 @@ public class AdminService {
                 .fechaRegistro(u.getFechaRegistro())
                 .esAdministrador(esAdmin)
                 .tipoAdministrador(tipo)
+                .tienePermisoDescarga(tienePermiso)
+                .build();
+    }
+
+    private UserSummaryDTO mapToListUserSummaryDTO(BeanUsuario u, boolean tienePermiso) {
+        // esAdministrador siempre false: el JPQL ya excluye usuarios vinculados a admins
+        return UserSummaryDTO.builder()
+                .idUsuario(u.getIdUsuario())
+                .nombreUsuario(u.getNombreUsuario())
+                .correo(u.getCorreo())
+                .nombreCompleto(u.getNombreCompleto())
+                .estado(u.getEstado().name())
+                .fechaRegistro(u.getFechaRegistro())
+                .esAdministrador(false)
+                .tipoAdministrador(null)
                 .tienePermisoDescarga(tienePermiso)
                 .build();
     }

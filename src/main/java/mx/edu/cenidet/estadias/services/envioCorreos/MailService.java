@@ -26,7 +26,7 @@ public class MailService {
     private String remitente;
 
     //Recuperación de contraseña
-    @Async
+    @Async("mailTaskExecutor")
     public void enviarRecuperacionPassword(String correo, String nombre, Integer codigo) {
         String html = renderizar("recuperacion-password.html",
                 "{{nombre}}", nombre,
@@ -35,7 +35,7 @@ public class MailService {
     }
 
     //Confirmación de cuenta
-    @Async
+    @Async("mailTaskExecutor")
     public void enviarConfirmacionCuenta(String correo, String nombre, Integer codigo) {
         String html = renderizar("confirmacion-cuenta.html",
                 "{{nombre}}", nombre,
@@ -44,7 +44,7 @@ public class MailService {
     }
 
     //Código para desactivar cuenta
-    @Async
+    @Async("mailTaskExecutor")
     public void enviarDesactivacionCuenta(String correo, String nombre, Integer codigo) {
         String html = renderizar("desactivacion-cuenta.html",
                 "{{nombre}}", nombre,
@@ -53,7 +53,7 @@ public class MailService {
     }
 
     //Credenciales de nuevo administrador
-    @Async
+    @Async("mailTaskExecutor")
     public void enviarCredencialesAdmin(String correo, String nombre, String passwordTemporal) {
         String html = renderizar("credenciales-admin.html",
                 "{{nombre}}", nombre,
@@ -62,7 +62,7 @@ public class MailService {
     }
 
     //Notificación de purga mensual del historial (enviada a todos los admins activos)
-    @Async
+    @Async("mailTaskExecutor")
     public void enviarPurgeHistorialAdmin(String correo, String nombre, int eliminados, String fechaCorte) {
         String html = renderizar("purge-historial.html",
                 "{{nombre}}", nombre,
@@ -72,7 +72,7 @@ public class MailService {
     }
 
     //Resultado de solicitud de descarga
-    @Async
+    @Async("mailTaskExecutor")
     public void enviarResultadoSolicitud(String correo, String nombre,
                                          EstadoSolicitud resultado, String comentario) {
         String plantilla = EstadoSolicitud.APROBADA.equals(resultado)
@@ -111,7 +111,7 @@ public class MailService {
             helper.setSubject(asunto);
             helper.setText(htmlContent, true);
             mailSender.send(message);
-            log.info("Correo enviado a [{}]: {}", destinatario, asunto);
+            log.info("Correo enviado — asunto: {}", asunto);
         } catch (MessagingException | RuntimeException e) {
             // No propagamos la excepción para no revertir la transacción principal
             log.error("Error al enviar correo a [{}]: {}", destinatario, e.getMessage());

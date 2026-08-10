@@ -20,9 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
 import java.util.Locale;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -46,15 +44,17 @@ public class ActionHistoryService {
         historialAccionRepository.save(acccion);
     }
 
-    //Historial de un usuario
+    //Historial de un usuario (paginado)
     @Transactional(readOnly = true)
-    public List<ActionHistorySummaryDTO> listarPorUsuario(Long idUsuario) {
+    public PageResponseDTO<ActionHistorySummaryDTO> listarPorUsuario(Long idUsuario, Pageable pageable) {
         if (!usuarioRepository.existsById(idUsuario)) {
             throw new ResourceNotFoundException("Usuario no encontrado con id: " + idUsuario);
         }
-        return historialAccionRepository
-                .findByUsuario_IdUsuarioOrderByFechaAccionDesc(idUsuario)
-                .stream().map(this::mapToDTO).collect(Collectors.toList());
+        return PageResponseDTO.of(
+                historialAccionRepository
+                        .findByUsuario_IdUsuarioOrderByFechaAccionDesc(idUsuario, pageable)
+                        .map(this::mapToDTO)
+        );
     }
 
     //Historial global paginado

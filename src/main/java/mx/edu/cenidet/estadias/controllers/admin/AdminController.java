@@ -120,9 +120,10 @@ public class AdminController {
     //Ver historial de un usuario especifico
     @GetMapping("/historial/{idUsuario}")
     @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'SUPERADMINISTRADOR')")
-    public ResponseEntity<ApiResponseDTO<List<ActionHistorySummaryDTO>>> listarHistorialDeUsuario(
-            @PathVariable Long idUsuario) {
-        return ResponseEntity.ok(ApiResponseDTO.ok("Historial del usuario obtenido.", actionHistoryService.listarPorUsuario(idUsuario)));
+    public ResponseEntity<ApiResponseDTO<PageResponseDTO<ActionHistorySummaryDTO>>> listarHistorialDeUsuario(
+            @PathVariable Long idUsuario,
+            @PageableDefault(size = 30, sort = "fechaAccion", direction = Sort.Direction.DESC) Pageable pageable) {
+        return ResponseEntity.ok(ApiResponseDTO.ok("Historial del usuario obtenido.", actionHistoryService.listarPorUsuario(idUsuario, pageable)));
     }
 
 }

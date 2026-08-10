@@ -29,6 +29,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Service
 @Slf4j
@@ -67,6 +68,7 @@ public class GapRecoveryService {
     private final AmbientWeatherMapper ambientWeatherMapper;
     private final ThingSpeakMapper thingSpeakMapper;
     private final TransactionTemplate transactionTemplate;
+    private final AtomicBoolean enProgreso = new AtomicBoolean(false);
 
     public GapRecoveryService(
             LecturaRepository lecturaRepository,
@@ -97,18 +99,34 @@ public class GapRecoveryService {
 
     @EventListener(ApplicationReadyEvent.class)
     public void alIniciar() {
-        log.info("[GAP-RECOVERY] Auditoría inicial de brechas al arrancar...");
-        recuperarBrechasClimaticas();
-        pausar(); // espaciar la recuperación climática de la eléctrica
-        recuperarBrechasElectricasTodasLasFuentes();
+        if (!enProgreso.compareAndSet(false, true)) {
+            log.info("[GAP-RECOVERY] Auditoría ya en progreso, se omite el evento ApplicationReady.");
+            return;
+        }
+        try {
+            log.info("[GAP-RECOVERY] Auditoría inicial de brechas al arrancar...");
+            recuperarBrechasClimaticas();
+            pausar(); // espaciar la recuperación climática de la eléctrica
+            recuperarBrechasElectricasTodasLasFuentes();
+        } finally {
+            enProgreso.set(false);
+        }
     }
 
     @EventListener(ConexionRecuperadaEvent.class)
     public void alRecuperarConexion(ConexionRecuperadaEvent evento) {
-        log.info("[GAP-RECOVERY] Disparado por ConexionRecuperadaEvent: {}", evento.getFuente());
-        switch (evento.getFuente()) {
-            case SyncHealthService.FUENTE_AMBIENT    -> recuperarBrechasClimaticas();
-            case SyncHealthService.FUENTE_THINGSPEAK -> recuperarBrechasElectricasTodasLasFuentes();
+        if (!enProgreso.compareAndSet(false, true)) {
+            log.info("[GAP-RECOVERY] Recuperación ya en progreso, se omite ConexionRecuperadaEvent ({}).", evento.getFuente());
+            return;
+        }
+        try {
+            log.info("[GAP-RECOVERY] Disparado por ConexionRecuperadaEvent: {}", evento.getFuente());
+            switch (evento.getFuente()) {
+                case SyncHealthService.FUENTE_AMBIENT    -> recuperarBrechasClimaticas();
+                case SyncHealthService.FUENTE_THINGSPEAK -> recuperarBrechasElectricasTodasLasFuentes();
+            }
+        } finally {
+            enProgreso.set(false);
         }
     }
 

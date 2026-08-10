@@ -18,6 +18,9 @@ public interface HistorialAccionRepository extends JpaRepository<BeanHistorialAc
     //Historial por usuario
     List<BeanHistorialAccion> findByUsuario_IdUsuarioOrderByFechaAccionDesc(Long idUsuario);
 
+    //Historial por usuario paginado
+    Page<BeanHistorialAccion> findByUsuario_IdUsuarioOrderByFechaAccionDesc(Long idUsuario, Pageable pageable);
+
     //Historial global
     Page<BeanHistorialAccion> findAllByOrderByFechaAccionDesc(Pageable pageable);
 
