@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -30,5 +31,9 @@ public interface PermisoDescargaRepository extends JpaRepository<BeanPermisoDesc
     //Batch: IDs de usuarios con permiso activo (elimina N+1 en el listado paginado)
     @Query("SELECT p.usuario.idUsuario FROM BeanPermisoDescarga p WHERE p.usuario.idUsuario IN :ids AND p.permisoDescarga = :estado")
     Set<Long> findUserIdsWithActivePermission(@Param("ids") Collection<Long> ids, @Param("estado") EstadoPermiso estado);
+
+    //Batch: permisos por ID de solicitud (elimina N+1 en listarParaAdmin y listarPorUsuario)
+    @Query("SELECT p FROM BeanPermisoDescarga p JOIN FETCH p.solicitudDescarga WHERE p.solicitudDescarga.idSolicitudDescarga IN :ids")
+    List<BeanPermisoDescarga> findAllBySolicitudDescargaIdIn(@Param("ids") Collection<Long> ids);
 }
 

@@ -81,24 +81,28 @@ public class ActionHistoryService {
     @Scheduled(cron = "0 0 2 1 * *", zone = "America/Mexico_City")
     @Transactional
     public void purgarHistorialMensual() {
-        LocalDateTime corte = LocalDate.now().withDayOfMonth(1).atStartOfDay();
-        long total = historialAccionRepository.countByFechaAccionBefore(corte);
-        if (total == 0) {
-            log.info("Purga mensual del historial: sin registros anteriores a {}", corte);
-            return;
+        try {
+            LocalDateTime corte = LocalDate.now().withDayOfMonth(1).atStartOfDay();
+            long total = historialAccionRepository.countByFechaAccionBefore(corte);
+            if (total == 0) {
+                log.info("Purga mensual del historial: sin registros anteriores a {}", corte);
+                return;
+            }
+            int eliminados = historialAccionRepository.eliminarAnterioresA(corte);
+            String fechaCorte = corte.format(
+                    DateTimeFormatter.ofPattern("d 'de' MMMM 'de' yyyy", new Locale("es", "MX")));
+            log.info("Purga mensual del historial: {} registros eliminados (anteriores al {})", eliminados, fechaCorte);
+            administradorRepository.findAllByOrderByUsuario_NombreUsuarioAsc()
+                    .stream()
+                    .filter(a -> EstadoUsuario.ACTIVO.equals(a.getUsuario().getEstado()))
+                    .forEach(a -> mailService.enviarPurgeHistorialAdmin(
+                            a.getUsuario().getCorreo(),
+                            a.getUsuario().getNombreCompleto(),
+                            eliminados,
+                            fechaCorte));
+        } catch (Exception e) {
+            log.error("Error en purga mensual del historial: {}", e.getMessage(), e);
         }
-        int eliminados = historialAccionRepository.eliminarAnterioresA(corte);
-        String fechaCorte = corte.format(
-                DateTimeFormatter.ofPattern("d 'de' MMMM 'de' yyyy", new Locale("es", "MX")));
-        log.info("Purga mensual del historial: {} registros eliminados (anteriores al {})", eliminados, fechaCorte);
-        administradorRepository.findAllByOrderByUsuario_NombreUsuarioAsc()
-                .stream()
-                .filter(a -> EstadoUsuario.ACTIVO.equals(a.getUsuario().getEstado()))
-                .forEach(a -> mailService.enviarPurgeHistorialAdmin(
-                        a.getUsuario().getCorreo(),
-                        a.getUsuario().getNombreCompleto(),
-                        eliminados,
-                        fechaCorte));
     }
 
     private ActionHistorySummaryDTO mapToDTO(BeanHistorialAccion h) {

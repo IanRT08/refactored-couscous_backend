@@ -96,7 +96,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponseDTO<?>> handleNotFound(
             ResourceNotFoundException ex) {
 
-        log.debug("Recurso no encontrado: {}", ex.getMessage());
+        log.warn("Recurso no encontrado: {}", ex.getMessage());
         return ResponseEntity
                 .status(HttpStatus.NOT_FOUND)
                 .body(ApiResponseDTO.error(ex.getMessage()));

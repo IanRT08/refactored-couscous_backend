@@ -11,9 +11,15 @@ spring:
 
   # Base de datos
   datasource:
-    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:estadias}?createDatabaseIfNotExist=true&useSSL=${DB_USE_SSL:false}&allowPublicKeyRetrieval=true&serverTimezone=America/Mexico_City
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:estadias}?createDatabaseIfNotExist=${DB_CREATE_IF_NOT_EXIST:false}&useSSL=${DB_USE_SSL:false}&allowPublicKeyRetrieval=true&serverTimezone=America/Mexico_City
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:}
+    hikari:
+      pool-name: EstadiasHikari
+      maximum-pool-size: ${HIKARI_MAX_POOL_SIZE:10}
+      minimum-idle: ${HIKARI_MIN_IDLE:5}
+      connection-timeout: 20000
+      idle-timeout: 300000
 
   jpa:
     defer-datasource-initialization: true

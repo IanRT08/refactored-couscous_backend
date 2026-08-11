@@ -13,6 +13,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
 @Service
@@ -87,10 +88,8 @@ public class MailService {
     }
 
     private String renderizar(String nombrePlantilla, String... reemplazos) {
-        try {
-            ClassPathResource recurso = new ClassPathResource("mail-templates/" + nombrePlantilla);
-            String html = new String(
-                    recurso.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+        try (InputStream is = new ClassPathResource("mail-templates/" + nombrePlantilla).getInputStream()) {
+            String html = new String(is.readAllBytes(), StandardCharsets.UTF_8);
             for (int i = 0; i < reemplazos.length - 1; i += 2) {
                 html = html.replace(reemplazos[i],
                         reemplazos[i + 1] != null ? reemplazos[i + 1] : "");

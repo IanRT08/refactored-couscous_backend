@@ -63,6 +63,10 @@ public class BeanUsuario {
     @Builder.Default
     private String preferenciasAlertas = "TODAS";
 
+    @Column(name = "debeRestablecerPassword", nullable = false, columnDefinition = "tinyint(1) not null default 0")
+    @Builder.Default
+    private boolean debeRestablecerPassword = false;
+
     @OneToOne(mappedBy = "usuario", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private BeanAdministrador administrador;
 

@@ -101,6 +101,7 @@ public class UserService {
         }
 
         usuario.setContrasenia(passwordEncoder.encode(dto.getNuevaContrasenia()));
+        usuario.setDebeRestablecerPassword(false);
         usuarioRepository.save(usuario);
         actionHistoryService.registrar(idUsuario, "PASSWORD_CAMBIADO",
                 "El usuario cambió su contraseña");

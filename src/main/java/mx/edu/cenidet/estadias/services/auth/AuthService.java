@@ -97,6 +97,7 @@ public class AuthService {
                 .rol(rol)
                 .fechaExpiracionToken(
                         LocalDateTime.now().plusSeconds(jwtService.getExpirationMs() / 1000))
+                .debeRestablecerPassword(usuario.isDebeRestablecerPassword())
                 .build();
     }
 

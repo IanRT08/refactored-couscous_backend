@@ -24,4 +24,7 @@ public class LoginResponseDTO {
     //Cierre de sesion automatico
     private LocalDateTime fechaExpiracionToken;
 
+    // Obliga al admin a cambiar su contraseña temporal en el primer login
+    private boolean debeRestablecerPassword;
+
 }

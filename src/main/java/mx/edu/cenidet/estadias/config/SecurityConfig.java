@@ -93,6 +93,12 @@ public class SecurityConfig {
                 .addFilterBefore(jwtAuthenticationFilter,
                         UsernamePasswordAuthenticationFilter.class)
 
+                //HSTS — solo actúa en peticiones HTTPS (Spring Security lo garantiza internamente)
+                .headers(headers -> headers
+                        .httpStrictTransportSecurity(hsts -> hsts
+                                .includeSubDomains(true)
+                                .maxAgeInSeconds(31536000)))
+
                 //Reglas de acceso
                 .authorizeHttpRequests(auth -> auth
 

@@ -91,7 +91,7 @@ public class TelemetryController {
             @RequestParam(defaultValue = "500") int size) {
 
         validarRango(inicio, fin);
-        TelemetryFilterDTO filtro = new TelemetryFilterDTO(inicio, fin, page, size);
+        TelemetryFilterDTO filtro = new TelemetryFilterDTO(inicio, fin, page, Math.min(size, 1000));
 
         return ResponseEntity.ok(
                 ApiResponseDTO.ok("Datos climáticos obtenidos.",
@@ -109,7 +109,7 @@ public class TelemetryController {
             @RequestParam(defaultValue = "500") int size) {
 
         validarRango(inicio, fin);
-        TelemetryFilterDTO filtro = new TelemetryFilterDTO(inicio, fin, page, size);
+        TelemetryFilterDTO filtro = new TelemetryFilterDTO(inicio, fin, page, Math.min(size, 1000));
 
         return ResponseEntity.ok(
                 ApiResponseDTO.ok("Datos eléctricos obtenidos.",

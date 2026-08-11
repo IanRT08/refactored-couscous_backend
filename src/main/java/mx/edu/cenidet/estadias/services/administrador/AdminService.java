@@ -139,6 +139,7 @@ public class AdminService {
                 .contrasenia(passwordEncoder.encode(passwordTemporal))
                 .estado(EstadoUsuario.ACTIVO)
                 .intentosFallidos(0)
+                .debeRestablecerPassword(true)
                 .build();
         nuevoUsuario = usuarioRepository.save(nuevoUsuario);
 

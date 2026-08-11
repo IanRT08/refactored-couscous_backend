@@ -25,7 +25,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -88,9 +90,14 @@ public class DownloadRequestService {
     // ── Historial de solicitudes del usuario ──────────────────
     @Transactional(readOnly = true)
     public List<DownloadRequestSummaryDTO> listarPorUsuario(Long idUsuario) {
-        return solicitudRepository
-                .findByUsuario_IdUsuarioOrderByFechaSolicitudDesc(idUsuario)
-                .stream().map(this::mapToSummaryDTO).collect(Collectors.toList());
+        List<BeanSolicitudDescarga> solicitudes = solicitudRepository
+                .findByUsuario_IdUsuarioOrderByFechaSolicitudDesc(idUsuario);
+        if (solicitudes.isEmpty()) return Collections.emptyList();
+
+        Map<Long, String> permisosPorSolicitud = buildPermisosPorSolicitud(solicitudes);
+        return solicitudes.stream()
+                .map(s -> mapToSummaryDTO(s, permisosPorSolicitud))
+                .collect(Collectors.toList());
     }
 
     // ── Módulo 2.5 — Admin: tabla de todas las solicitudes ────
@@ -102,7 +109,10 @@ public class DownloadRequestService {
                 ? solicitudRepository.findByEstadoOrderByFechaSolicitudDesc(estado, pageable)
                 : solicitudRepository.findAllByOrderByFechaSolicitudDesc(pageable);
 
-        return PageResponseDTO.of(pagina.map(this::mapToDetailDTO));
+        if (pagina.isEmpty()) return PageResponseDTO.of(pagina.map(this::mapToDetailDTOSingle));
+
+        Map<Long, String> permisosPorSolicitud = buildPermisosPorSolicitud(pagina.getContent());
+        return PageResponseDTO.of(pagina.map(s -> mapToDetailDTO(s, permisosPorSolicitud)));
     }
 
     //Admin: aprobar o rechazar
@@ -156,7 +166,7 @@ public class DownloadRequestService {
                         + ". Motivo: " + (dto.getComentario() != null ? dto.getComentario() : "-"));
 
         log.info("Solicitud #{} resuelta: {}", dto.getIdSolicitudDescarga(), dto.getDesicion());
-        return mapToDetailDTO(solicitud);
+        return mapToDetailDTOSingle(solicitud);
     }
 
     //Verificar permiso activo
@@ -166,6 +176,47 @@ public class DownloadRequestService {
                 idUsuario, EstadoPermiso.ACTIVO);
     }
 
+    private Map<Long, String> buildPermisosPorSolicitud(List<BeanSolicitudDescarga> solicitudes) {
+        List<Long> ids = solicitudes.stream()
+                .map(BeanSolicitudDescarga::getIdSolicitudDescarga)
+                .collect(Collectors.toList());
+        return permisoRepository.findAllBySolicitudDescargaIdIn(ids).stream()
+                .collect(Collectors.toMap(
+                        p -> p.getSolicitudDescarga().getIdSolicitudDescarga(),
+                        p -> p.getPermisoDescarga().name(),
+                        (a, b) -> a));
+    }
+
+    // Mapper batch: usado en listarPorUsuario y listarParaAdmin
+    private DownloadRequestSummaryDTO mapToSummaryDTO(BeanSolicitudDescarga s,
+                                                       Map<Long, String> permisosPorSolicitud) {
+        return DownloadRequestSummaryDTO.builder()
+                .idSolicitudDescarga(s.getIdSolicitudDescarga())
+                .motivo(s.getMotivo())
+                .estado(s.getEstado().name())
+                .fechaSolicitud(s.getFechaSolicitud())
+                .estadoPermiso(permisosPorSolicitud.get(s.getIdSolicitudDescarga()))
+                .build();
+    }
+
+    // Mapper batch: usado en listarParaAdmin
+    private DownloadRequestDetailDTO mapToDetailDTO(BeanSolicitudDescarga s,
+                                                     Map<Long, String> permisosPorSolicitud) {
+        BeanUsuario u = s.getUsuario();
+        return DownloadRequestDetailDTO.builder()
+                .idSolicitudDescarga(s.getIdSolicitudDescarga())
+                .estado(s.getEstado().name())
+                .motivo(s.getMotivo())
+                .fechaSolicitud(s.getFechaSolicitud())
+                .idUsuario(u.getIdUsuario())
+                .nombreUsuario(u.getNombreUsuario())
+                .correo(u.getCorreo())
+                .nombreCompleto(u.getNombreCompleto())
+                .estadoPermiso(permisosPorSolicitud.get(s.getIdSolicitudDescarga()))
+                .build();
+    }
+
+    // Mapper single-item: usado en crearSolicitud (retorno inmediato, sin N+1)
     private DownloadRequestSummaryDTO mapToSummaryDTO(BeanSolicitudDescarga s) {
         String estadoPermiso = permisoRepository
                 .findBySolicitudDescarga_IdSolicitudDescarga(s.getIdSolicitudDescarga())
@@ -181,7 +232,8 @@ public class DownloadRequestService {
                 .build();
     }
 
-    private DownloadRequestDetailDTO mapToDetailDTO(BeanSolicitudDescarga s) {
+    // Mapper single-item: usado en resolverSolicitud y listarParaAdmin (página vacía)
+    private DownloadRequestDetailDTO mapToDetailDTOSingle(BeanSolicitudDescarga s) {
         BeanUsuario u = s.getUsuario();
         String estadoPermiso = permisoRepository
                 .findBySolicitudDescarga_IdSolicitudDescarga(s.getIdSolicitudDescarga())
