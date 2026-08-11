@@ -33,7 +33,7 @@ public class ActionHistoryService {
     private final MailService mailService;
 
     //Registrar una acción
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional(propagation = Propagation.REQUIRED)
     public void registrar(Long idUsuario, String tipoAccion, String descripcion) {
         BeanHistorialAccion acccion = BeanHistorialAccion.builder()
                 .tipoAccion(tipoAccion)
