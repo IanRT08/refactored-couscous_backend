@@ -137,3 +137,13 @@ gap-recovery:
 # más páginas que una recuperación de brecha normal.
 respaldo-historico:
   delay-ms-entre-paginas: ${RESPALDO_HISTORICO_DELAY_MS:2000}
+
+# ────────────────────────────────────────────────────────────────────────────
+# Rate limiting — IPs de proxies de confianza para X-Forwarded-For.
+# Solo se lee ese header cuando la petición llega desde una de estas IPs.
+# Dejar vacío si el backend recibe peticiones directamente (sin nginx/proxy).
+# En producción con nginx en el mismo servidor: RATE_LIMITING_TRUSTED_PROXIES=127.0.0.1
+# Con múltiples proxies separar con coma: 127.0.0.1,10.0.0.1
+# ────────────────────────────────────────────────────────────────────────────
+rate-limiting:
+  trusted-proxies: ${RATE_LIMITING_TRUSTED_PROXIES:}

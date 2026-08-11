@@ -1,5 +1,6 @@
 package mx.edu.cenidet.estadias.security;
 
+import jakarta.annotation.PostConstruct;
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -8,13 +9,17 @@ import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
+import java.util.Arrays;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 /**
  * Limita la tasa de peticiones por IP en los endpoints de autenticación
@@ -35,6 +40,25 @@ public class RateLimitingFilter implements Filter {
         "/api/auth/verify-reset-code", new int[]{10, 60_000},
         "/api/auth/verify-account",    new int[]{10, 60_000}
     );
+
+    // IPs de proxies confiables (ej. nginx en localhost → "127.0.0.1").
+    // Solo se lee X-Forwarded-For cuando la petición viene de una de estas IPs.
+    // Si está vacío, solo se usa getRemoteAddr() — seguro sin proxy delante.
+    @Value("${rate-limiting.trusted-proxies:}")
+    private String trustedProxiesConfig;
+
+    private Set<String> trustedProxies = Set.of();
+
+    @PostConstruct
+    public void init() {
+        if (trustedProxiesConfig != null && !trustedProxiesConfig.isBlank()) {
+            trustedProxies = Arrays.stream(trustedProxiesConfig.split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .collect(Collectors.toUnmodifiableSet());
+            log.info("RateLimiter: {} proxy(ies) de confianza: {}", trustedProxies.size(), trustedProxies);
+        }
+    }
 
     private final ConcurrentHashMap<String, ArrayDeque<Long>> buckets = new ConcurrentHashMap<>();
 
@@ -83,10 +107,13 @@ public class RateLimitingFilter implements Filter {
     }
 
     private String resolverIp(HttpServletRequest req) {
-        String xff = req.getHeader("X-Forwarded-For");
-        if (xff != null && !xff.isBlank()) {
-            return xff.split(",")[0].trim();
+        String remoteAddr = req.getRemoteAddr();
+        if (!trustedProxies.isEmpty() && trustedProxies.contains(remoteAddr)) {
+            String xff = req.getHeader("X-Forwarded-For");
+            if (xff != null && !xff.isBlank()) {
+                return xff.split(",")[0].trim();
+            }
         }
-        return req.getRemoteAddr();
+        return remoteAddr;
     }
 }
