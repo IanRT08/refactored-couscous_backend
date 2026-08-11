@@ -31,7 +31,7 @@ import java.util.List;
 @EnableMethodSecurity
 public class SecurityConfig {
 
-    @Value("#{'${cors.allowed-origins:*}'.split(',')}")
+    @Value("#{'${cors.allowed-origins}'.split(',')}")
     private List<String> allowedOrigins;
 
     //Bean obligatorio para los Services que cifran contraseñas

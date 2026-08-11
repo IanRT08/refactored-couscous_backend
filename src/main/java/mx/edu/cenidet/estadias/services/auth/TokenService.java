@@ -15,22 +15,34 @@ import org.springframework.transaction.annotation.Transactional;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class TokenService {
 
-    private static final int    DURACION_MINUTOS    = 15;
-    private static final int    MINUTOS_PARA_REENVIO = 5;
+    private static final int DURACION_MINUTOS     = 15;
+    private static final int MINUTOS_PARA_REENVIO = 5;
+    private static final int MAX_INTENTOS_TOKEN   = 5;
 
     private final TokenRepository tokenRepository;
     private final UsuarioRepository usuarioRepository;
     private final MailService mailService;
 
+    // Contador in-memory de intentos fallidos: clave = "idUsuario:TipoToken"
+    private final ConcurrentHashMap<String, Integer> intentosFallidos = new ConcurrentHashMap<>();
+
+    private String tokenKey(Long idUsuario, TipoToken tipo) {
+        return idUsuario + ":" + tipo;
+    }
+
 
     @Transactional
     public BeanToken generarYEnviarToken(Long idUsuario, TipoToken tipo, String correo, String nombre) {
+        // Nuevo token = nueva oportunidad: resetear contador de intentos fallidos
+        intentosFallidos.remove(tokenKey(idUsuario, tipo));
+
         LocalDateTime ahora = LocalDateTime.now();
         tokenRepository.findUltimoTokenPorTipo(idUsuario, tipo).ifPresent(ultimo -> {
             long minutosRestantes = Duration.between(ahora, ultimo.getFechaExpiracion()).toMinutes();
@@ -72,24 +84,36 @@ public class TokenService {
 
     // Validar sin consumir — usado para verificar el código de recuperación antes del reseteo
     public void validarSinConsumir(Long idUsuario, Integer codigoIngresado, TipoToken tipo) {
+        String key = tokenKey(idUsuario, tipo);
+        if (intentosFallidos.getOrDefault(key, 0) >= MAX_INTENTOS_TOKEN) {
+            throw new BusinessRuleException(
+                    "Demasiados intentos fallidos. Solicita un nuevo código.");
+        }
         BeanToken token = tokenRepository.findTokenVigente(idUsuario, tipo, LocalDateTime.now())
                 .orElseThrow(() -> new BusinessRuleException(
                         "El código es inválido o ha expirado. Solicita uno nuevo."));
         if (!token.getCodigo().equals(codigoIngresado)) {
+            intentosFallidos.merge(key, 1, Integer::sum);
             throw new BusinessRuleException("El código ingresado es incorrecto.");
         }
+        intentosFallidos.remove(key);
     }
 
     //Validar y consumir token
     public void validarYConsumir(Long idUsuario, Integer codigoIngresado, TipoToken tipo) {
+        String key = tokenKey(idUsuario, tipo);
+        if (intentosFallidos.getOrDefault(key, 0) >= MAX_INTENTOS_TOKEN) {
+            throw new BusinessRuleException(
+                    "Demasiados intentos fallidos. Solicita un nuevo código.");
+        }
         BeanToken token = tokenRepository.findTokenVigente(idUsuario, tipo, LocalDateTime.now())
                 .orElseThrow(() -> new BusinessRuleException(
                         "El código es inválido o ha expirado. Solicita uno nuevo."));
-
         if (!token.getCodigo().equals(codigoIngresado)) {
+            intentosFallidos.merge(key, 1, Integer::sum);
             throw new BusinessRuleException("El código ingresado es incorrecto.");
         }
-
+        intentosFallidos.remove(key);
         token.setUsado(true);
         tokenRepository.save(token);
         log.info("Token {} consumido exitosamente para usuario {}", tipo, idUsuario);
